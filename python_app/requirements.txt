@@ -1,0 +1,23 @@
+# Banco de dados
+psycopg2-binary==2.9.11
+sqlalchemy==2.0.46
+
+# Twitter/APIs
+requests==2.31.0
+dotenv==0.9.9
+python-dotenv==1.2.1
+
+# Data processing
+pandas==2.2.0
+numpy==1.26.4
+
+# Utilities
+click==8.1.7
+loguru==0.7.2
+pydantic==2.5.3
+
+# Dev dependencies
+pytest==7.4.4
+black==23.12.1
+flake8==7.0.0
+plotly==6.5.2
