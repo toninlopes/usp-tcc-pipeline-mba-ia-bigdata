@@ -12,6 +12,10 @@ emoji==2.14.1
 pandas==2.2.0
 numpy==1.26.4
 
+# NLP / FinBERT-PT-BR
+transformers==4.51.1
+torch==2.6.0
+
 # Utilities
 click==8.1.7
 loguru==0.7.2
