@@ -6,7 +6,7 @@ import os
 from loguru import logger
 from dotenv import load_dotenv
 import json
-from parse_tweet import Tweets, Tweet
+from shared.models import Tweets, Tweet
 
 load_dotenv()
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import os
 import json
-from database import DatabaseManager
+from shared.database import DatabaseManager
 
 @dataclass
 class SearchTerm:
@@ -23,7 +23,7 @@ class SearchTerm:
             'from_date_time': self.from_date_time,
             'to_date_time': self.to_date_time
         }
-    
+
     def to_json(self):
         """Converts the SearchTerms to a JSON-serializable format."""
         return json.dumps(self.to_dict())
@@ -31,15 +31,9 @@ class SearchTerm:
 if __name__ == "__main__":
 
     try:
-        # Caminho do script atual
-        script_dir = os.path.dirname(__file__)  # pasta python_app/parse_tweet/
-        print(f"Diretório do script: {script_dir}")
-
-        # Subir 2 níveis: python_app/parse_tweet/ → python_app/ → projeto/
-        project_root = os.path.dirname(script_dir)
-        print(f"Raiz do projeto: {project_root}")
-
-        # Caminho completo para o JSON
+        script_dir = os.path.dirname(__file__)
+        # __file__ está em pipeline/01_extraction/ — sobe 2 níveis até a raiz do projeto
+        project_root = os.path.dirname(os.path.dirname(script_dir))
         json_path = os.path.join(project_root, "config", "search_terms_monthly.json")
         print(f"Caminho do JSON: {json_path}")
 
@@ -47,8 +41,10 @@ if __name__ == "__main__":
             json_data = json.load(file)
     except FileNotFoundError:
         print(f"File not found: {json_path}")
+        raise SystemExit(1)
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
+        raise SystemExit(1)
 
     search_terms: list[SearchTerm] = [SearchTerm(terms) for terms in json_data]
 
@@ -76,4 +72,3 @@ if __name__ == "__main__":
                 print(f"Failed to insert log for search term: {term.to_dict()}")
         else:
             print(f"Log already exists for search term: {term.to_dict()}")
-        

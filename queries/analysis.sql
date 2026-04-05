@@ -28,6 +28,16 @@ SELECT DISTINCT elem->>'tag' AS tag FROM tweets t,
 jsonb_array_elements(hashtags->'hashtags') AS elem
 ORDER BY tag;
 
+
+SELECT l.* FROM collection_log l;
+
+INSERT INTO collection_log (search_term) VALUES ('{"x_user_id": "51150679", "to_date_time": "2026-02-12T03:00:00Z", "from_date_time": "2025-09-01T02:59:00Z"}');
+
+DELETE FROM collection_log WHERE tweets_collected IS NULL;
+
+SELECT l.search_term->>'x_user_id' FROM collection_log l;
+
+
 -- SELECT tablename, tableowner 
 -- FROM pg_tables 
 -- WHERE tablename = 'tweets';
@@ -54,8 +64,7 @@ ORDER by t.created_at DESC;
 
 -- UPDATE tweets SET is_finance_tweet = NULL, sentiment = NULL
 
-SELECT t.id, t.note_tweet, t.sentiment, t.is_finance_tweet, t.created_at FROM tweets t
-ORDER BY t.created_at DESC
+SELECT * FROM tweets t ORDER BY t.created_at DESC
 
 SELECT * FROM tweets_classification c
 WHERE tweet_id = 12558
