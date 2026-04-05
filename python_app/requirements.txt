@@ -12,6 +12,9 @@ emoji==2.14.1
 pandas==2.2.0
 numpy==1.26.4
 
+# Avaliação de modelos
+scikit-learn==1.6.1
+
 # NLP / FinBERT-PT-BR
 transformers==4.51.1
 torch==2.6.0
