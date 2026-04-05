@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from database import DatabaseManager
+from shared.database import DatabaseManager
 
 
 db_manager = DatabaseManager()
