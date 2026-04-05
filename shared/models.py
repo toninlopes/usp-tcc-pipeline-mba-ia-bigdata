@@ -202,10 +202,10 @@ if __name__ == "__main__":
 
     try:
         # Caminho do script atual
-        script_dir = os.path.dirname(__file__)  # pasta python_app/parse_tweet/
+        script_dir = os.path.dirname(__file__)  # pasta shared/
         print(f"Diretório do script: {script_dir}")
 
-        # Subir 2 níveis: python_app/parse_tweet/ → python_app/ → projeto/
+        # Subir 1 nível: shared/ → projeto/
         project_root = os.path.dirname(os.path.dirname(script_dir))
         print(f"Raiz do projeto: {project_root}")
 

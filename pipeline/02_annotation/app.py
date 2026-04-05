@@ -10,9 +10,9 @@ if _project_root not in sys.path:
 import streamlit as st
 
 # Define your pages
-pg1 = st.Page("../../python_app/classifier/dashboard.py", title="Analytics", icon="📊")
+pg1 = st.Page("../03_eda/dashboard.py", title="Analytics", icon="📊")
 pg2 = st.Page("classifier.py", title="Classification", icon="🏷️")
-pg3 = st.Page("../../python_app/classifier/eda.py", title="Exploração dos Dados", icon="🔍")
+pg3 = st.Page("../03_eda/eda.py", title="Exploração dos Dados", icon="🔍")
 
 # Initialize navigation
 pg = st.navigation([pg1, pg2, pg3])
