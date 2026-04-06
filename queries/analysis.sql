@@ -67,7 +67,6 @@ ORDER by t.created_at DESC;
 SELECT * FROM tweets t ORDER BY t.created_at DESC
 
 SELECT * FROM tweets_classification c
-WHERE tweet_id = 12558
 ORDER BY tweet_id DESC;
 
 
@@ -89,3 +88,31 @@ FROM tweet_modes m
 WHERE t.id = m.tweet_id
   AND t.is_finance_tweet IS NULL;
 
+
+WITH classified AS (
+    SELECT
+        t.*,
+        EXISTS (
+            SELECT 1 FROM tweets_classification tc
+            WHERE tc.tweet_id = t.id
+            AND tc.classificator = 'Humano'
+        ) AS has_human_classification,
+        EXISTS (
+            SELECT 1 FROM tweets_classification tc
+            WHERE tc.tweet_id = t.id
+            AND tc.classificator = 'FinBERT-PT-BR'
+        ) AS has_finbert_classification
+    FROM tweets t
+)
+
+SELECT t.* FROM classified t
+WHERE is_finance_tweet = 1 AND has_human_classification = TRUE
+AND has_finbert_classification = FALSE
+ORDER BY t.created_at DESC;
+
+
+SELECT * FROM tweets_classification
+WHERE classificator = 'FinBERT-PT-BR';
+
+DELETE FROM tweets_classification
+WHERE classificator = 'FinBERT-PT-BR';
