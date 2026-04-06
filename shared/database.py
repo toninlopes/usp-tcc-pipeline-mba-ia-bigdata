@@ -2,10 +2,12 @@ import psycopg2
 from psycopg2.extras import Json
 from psycopg2.pool import SimpleConnectionPool
 from contextlib import contextmanager
+import pandas as pd
 import os
 from loguru import logger
 from dotenv import load_dotenv
 import json
+from typing import Optional
 from shared.models import Tweets, Tweet
 
 load_dotenv()
@@ -141,9 +143,6 @@ class DatabaseManager:
     def query_all_tweets(self) -> list:
         """
         Queries the tweets table for all entries.
-
-        Args:
-            is_finance_news (dict): The is_finance_news value to filter tweets by.
         """
 
         query = """
@@ -164,9 +163,6 @@ class DatabaseManager:
     def query_all_tweets_with_human_classification(self) -> list:
         """
         Queries the tweets table for all entries.
-
-        Args:
-            is_finance_news (dict): The is_finance_news value to filter tweets by.
         """
 
         query = """
@@ -190,6 +186,64 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Failed to query all unlabeled tweets: {e}")
             return []
+
+    def query_all_tweets_with_human_but_not_finBERT_classification(
+        self,
+    ) -> pd.DataFrame:
+        """
+        Queries all tweets table where finance tweet is true and there is a human classification, but no FinBERT-pt-br.
+        """
+
+        query = """
+        WITH classified AS (
+            SELECT
+                t.*,
+                EXISTS (
+                    SELECT 1 FROM tweets_classification tc
+                    WHERE tc.tweet_id = t.id
+                    AND tc.classificator = 'Humano'
+                ) AS has_human_classification,
+                EXISTS (
+                    SELECT 1 FROM tweets_classification tc
+                    WHERE tc.tweet_id = t.id
+                    AND tc.classificator = 'FinBERT-PT-BR'
+                ) AS has_finbert_classification
+            FROM tweets t
+        )
+
+        SELECT t.* FROM classified t
+        WHERE
+            is_finance_tweet = 1
+            AND has_human_classification = TRUE
+            AND has_finbert_classification = FALSE
+        ORDER BY t.created_at DESC;
+        """
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(query)
+                    results = cur.fetchall()
+                    logger.info(f"Queried all unlabeled tweets successfully.")
+                    return pd.DataFrame(
+                        results,
+                        columns=[
+                            "id",
+                            "tweet_id",
+                            "username",
+                            "note_tweet",
+                            "created_at",
+                            "likes",
+                            "hashtags",
+                            "tweet",
+                            "sentiment",
+                            "is_finance_tweet",
+                            "has_human_classification",
+                            "has_finbert_classification",
+                        ],
+                    )
+        except Exception as e:
+            logger.error(f"Failed to query all unlabeled tweets: {e}")
+            return pd.DataFrame([])
 
     def update_sentiment(self, id: int, sentiment: str) -> bool:
         """
@@ -292,6 +346,7 @@ class DatabaseManager:
         sentiment: str,
         why_sentiment: str,
         classificator: str,
+        score: Optional[float] = None,
     ) -> bool:
         """
         Inserts a classification entry into the tweets_classification table.
@@ -302,7 +357,8 @@ class DatabaseManager:
             why_is_finance_news (str): The reason for the is_finance_news value.
             sentiment (str): The sentiment value.
             why_sentiment (str): The reason for the sentiment value.
-            classificater (str): The name of the person who classified the tweet.
+            classificator (str): The name of the person who classified the tweet.
+            score (float, optional): The confidence score for the classification.
         """
         # 1. Force conversion to a standard Python int immediately
         # If tweet_id is passed as [12345] or a numpy array, .item() extracts it.
@@ -321,8 +377,9 @@ class DatabaseManager:
             why_is_finance_news,
             sentiment,
             why_sentiment,
-            classificator
-        ) VALUES (%s, %s, %s, lower(%s), %s, %s)
+            classificator,
+            score
+        ) VALUES (%s, %s, %s, lower(%s), %s, %s, %s)
         """
         try:
             with self.get_connection() as conn:
@@ -336,6 +393,7 @@ class DatabaseManager:
                             sentiment,
                             why_sentiment,
                             classificator,
+                            score,
                         ),
                     )
                     conn.commit()

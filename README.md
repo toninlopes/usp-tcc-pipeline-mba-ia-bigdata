@@ -1,6 +1,15 @@
-# Coletor de Notícias Financeiras — X/Twitter
+# Pipeline de Análise de Sentimento — X/Twitter Financeiro
 
-Pipeline de coleta, armazenamento e classificação de tweets financeiros, usando a API do X (Twitter) v2, PostgreSQL e uma interface Streamlit para classificação manual e análise de dados.
+Pipeline de coleta, anotação e análise de sentimento de publicações do X/Twitter
+relacionadas ao mercado financeiro brasileiro, desenvolvido como TCC de MBA em
+Inteligência Artificial e Big Data (USP São Carlos).
+
+**Ferramenta central:** [FinBERT-PT-BR](https://huggingface.co/lucas-leme/FinBERT-PT-BR)
+(Santos, Bianchi & Costa, 2023) — modelo BERT especializado para o domínio
+financeiro em português do Brasil.
+
+**Produto final:** índice de sentimento extraído das publicações, avaliado quanto
+à sua coerência com eventos macroeconômicos do período.
 
 ---
 
@@ -8,27 +17,76 @@ Pipeline de coleta, armazenamento e classificação de tweets financeiros, usand
 
 ```
 collect-twitter-data/
-├── .env                                        # Variáveis de ambiente (credenciais e configurações)
-├── docker-compose.yml                          # Infraestrutura Docker (PostgreSQL + pgAdmin)
-├── init-scripts/
-│   ├── 01-init-database.sh                     # Criação de usuário e permissões no banco
-│   └── 02-create-tables.sql                    # Schema do banco (tabelas, índices)
-├── json_data/
-│   ├── search_tems.json                        # Termos de busca mensais (out–dez 2025)
-│   └── all_search.json                         # Termos de busca históricos (2016–2025)
-├── python_app/
-│   ├── __main__.py                             # Ponto de entrada principal (coleta de tweets)
-│   ├── x_tweets.py                             # Cliente da API X v2
-│   ├── parse_tweet.py                          # Data classes para parsing do JSON da API
-│   ├── database.py                             # Gerenciador de conexão e queries PostgreSQL
-│   ├── collection_log.py                       # Registro de termos de busca no banco
-│   ├── classifier_app.py                       # Launcher do app Streamlit
-│   ├── check_db_connection.py                  # Teste de conectividade com o banco
-│   ├── requirements.txt                        # Dependências Python
-│   └── classifier/
-│       ├── classifier.py                       # Interface de classificação manual (Streamlit)
-│       └── dashboard.py                        # Dashboard de análise (Streamlit)
-└── QUERIES                                     # Queries SQL utilitárias para análise
+│
+├── .env                                    # Variáveis de ambiente (credenciais)
+├── docker-compose.yml                      # Infraestrutura Docker (PostgreSQL + pgAdmin)
+├── Makefile                                # Comandos por etapa do pipeline
+├── pytest.ini                              # Configuração de descoberta de testes
+├── requirements.txt                        # Dependências Python
+│
+├── config/                                 # Termos de busca para a coleta
+│   ├── search_terms_monthly.json           # Períodos mensais (out/2025–fev/2026)
+│   └── search_terms_historical.json        # Períodos históricos (2016–2025)
+│
+├── infra/                                  # Scripts de inicialização do banco
+│   ├── 01-init-database.sh                 # Criação de usuário e permissões
+│   └── 02-create-tables.sql               # Schema (tabelas e índices)
+│
+├── pipeline/
+│   ├── 01_extraction/                      # Coleta via API X v2
+│   │   ├── base_extractor.py               # ABC: interface para extratores de dados
+│   │   ├── twitter_api.py                  # TwitterAPIExtractor(BaseExtractor)
+│   │   ├── collection_log.py               # Registro de termos de busca no banco
+│   │   └── __main__.py                     # Ponto de entrada: python -m pipeline.01_extraction
+│   │
+│   ├── 02_annotation/                      # Anotação manual (Streamlit)
+│   │   ├── classifier.py                   # Interface de classificação tweet a tweet
+│   │   └── app.py                          # Launcher multi-página Streamlit
+│   │
+│   ├── 03_eda/                             # Exploração dos dados
+│   │   ├── dashboard.py                    # Distribuição de sentimentos e categorias
+│   │   └── eda.py                          # Análise textual (comprimento, tokens, etc.)
+│   │
+│   ├── 04_preprocessing/                   # Limpeza textual
+│   │   ├── text_cleaner.py                 # clean(): remove URLs, emojis, menções, hashtags
+│   │   └── text_cleaner_tests.py           # Testes unitários de text_cleaner
+│   │
+│   ├── 05_processing/                      # Inferência do modelo
+│   │   ├── sentiment_analyzer.py           # FinBERT-PT-BR → tweets_classification
+│   │   └── sentiment_analyzer_tests.py     # Testes unitários de sentiment_analyzer
+│   │
+│   └── 06_evaluation/                      # Avaliação dos resultados
+│       └── metrics.py                      # Acurácia, F1, matriz de confusão
+│
+├── shared/                                 # Código transversal a todas as etapas
+│   ├── database.py                         # DatabaseManager (conexão e queries)
+│   └── models.py                           # Dataclasses de parsing da API X
+│
+└── queries/
+    └── analysis.sql                        # Queries SQL utilitárias para análise
+```
+
+### Arquitetura do pipeline
+
+```
+╔══════════════╦══════════════╦══════════════╗
+║ 01_extraction║ 02_annotation║   03_eda     ║
+║──────────────║──────────────║──────────────║
+║ API X v2     ║ Classificação║ Exploração   ║
+║ BaseExtractor║ manual       ║ dados brutos ║
+║ (abstrato)   ║ (Streamlit)  ║ e anotados   ║
+╚══════╤═══════╩══════════════╩══════╤═══════╝
+       │ fluxo de dados              │ informa decisões de limpeza
+       ▼                             ▼
+╔══════════════╦══════════════╦══════════════╗
+║04_preprocess ║ 05_processing║06_evaluation ║
+║──────────────║──────────────║──────────────║
+║ Limpeza      ║ FinBERT-     ║ Acurácia     ║
+║ textual      ║ PT-BR        ║ F1 · matriz  ║
+║              ║ inferência   ║ confusão     ║
+╚══════════════╩══════════════╩══════════════╝
+
+─────────── shared/database.py · shared/models.py · infra/ · config/ ───────────
 ```
 
 ---
@@ -36,9 +94,8 @@ collect-twitter-data/
 ## Pré-requisitos
 
 - [Docker](https://www.docker.com/) e Docker Compose instalados
-- Python 3.9+
+- Python 3.10+
 - Credenciais da [API do X v2](https://developer.x.com/) (Bearer Token)
-- Conta no X com acesso à API de pesquisa de tweets por usuário
 
 ---
 
@@ -46,215 +103,168 @@ collect-twitter-data/
 
 ### 1.1. Variáveis de Ambiente
 
-Edite o arquivo `.env` na raiz do projeto com suas credenciais:
+Edite o arquivo `.env` na raiz do projeto:
 
 ```dotenv
 # PostgreSQL
 POSTGRES_DB=twitter_db
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=sua_senha_aqui
+POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 
 # Usuário da aplicação
 POSTGRES_TWITTER_USER=twitter_user
 POSTGRES_TWITTER_PASSWORD=sua_senha_aqui
 
-# PgAdmin (opcional - interface gráfica)
+# pgAdmin (interface gráfica opcional)
 PGADMIN_DEFAULT_EMAIL=admin@twitter.com
 PGADMIN_DEFAULT_PASSWORD=admin123
 PGADMIN_PORT=5050
 
-# Twitter API credentials (se for usar API oficial)
-TWITTER_ACCESS_TOKEN=seu_beare_token_aqui
+# API X v2
+TWITTER_ACCESS_TOKEN=seu_bearer_token_aqui
 ```
 
 ### 1.2. Permissões do Script de Inicialização
 
 ```bash
-chmod +x init-scripts/01-init-database.sh
+chmod +x infra/01-init-database.sh
 ```
 
 ---
 
 ## 2. Infraestrutura Docker
 
-### Subir os containers
-
 ```bash
-docker-compose up -d
+make db-up      # sobe PostgreSQL + pgAdmin
+make db-down    # para os containers
 ```
 
-Isso inicializa automaticamente:
-1. PostgreSQL 15 (container `twitter-postgres`, porta 5432)
-2. pgAdmin 4 (container `twitter-pgadmin`, porta 5050)
-3. Script `01-init-database.sh` — cria o usuário `twitter_user` e configura permissões
-4. Script `02-create-tables.sql` — cria as tabelas `tweets`, `tweets_classification` e `collection_log`
-
-### Outros comandos Docker
-
-```bash
-# Parar os containers
-docker-compose down
-
-# Parar e remover volumes (atenção: apaga todos os dados)
-docker-compose down -v
-
-# Acompanhar logs do PostgreSQL
-docker-compose logs -f postgres
-```
-
-### Teste de Conexão
-
-```bash
-# Superusuário
-docker exec -it twitter-postgres psql -U postgres -c "SELECT current_user, current_database();"
-
-# Usuário da aplicação
-docker exec -it twitter-postgres psql -U twitter_user -d twitter_db -c "SELECT current_user, current_database();"
-
-# Via Python
-python ./python_app/check_db_connection.py
-```
+Ao subir, o Docker inicializa automaticamente:
+1. PostgreSQL 15 (porta `5432`)
+2. pgAdmin 4 (porta `5050`)
+3. `infra/01-init-database.sh` — cria o usuário `twitter_user` e configura permissões
+4. `infra/02-create-tables.sql` — cria as tabelas `tweets`, `tweets_classification` e `collection_log`
 
 ---
 
 ## 3. Ambiente Python
 
 ```bash
-# Criar e ativar o virtual environment
 python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-# .venv\Scripts\activate   # Windows
+source .venv/bin/activate       # Linux/macOS
+# .venv\Scripts\activate        # Windows
 
-# Instalar dependências
-pip install -r python_app/requirements.txt
+pip install -r requirements.txt
 ```
 
 ---
 
-## 4. Pipeline de Coleta
+## 4. Executando o Pipeline
 
-### 4.1. Popular o Banco com Termos de Busca
+Todos os comandos são executados a partir da raiz do projeto via `make`:
 
-Antes de coletar tweets, registre os termos de busca (períodos e usuários alvo) na tabela `collection_log`:
+| Comando | Descrição | Status |
+|---|---|---|
+| `make collect` | Coleta tweets via API X v2 | Implementado |
+| `make annotate` | Anotação manual (Streamlit) | Implementado |
+| `make eda` | Dashboard de exploração dos dados | Implementado |
+| `make preprocess` | Limpeza textual para o FinBERT | Implementado |
+| `make process` | Inferência com FinBERT-PT-BR | Implementado |
+| `make evaluate` | Métricas de avaliação | A implementar |
 
-```bash
-python -m python_app.collection_log
-```
+### 4.1. Registrar os Termos de Busca
 
-Os termos de busca são lidos dos arquivos JSON em `json_data/`. Cada entrada define:
-- `x_user_id` — ID do usuário no X a ser monitorado (ex: InfoMoney = `59773459`)
-- `from_date_time` — início do período de coleta (ISO 8601, UTC)
-- `to_date_time` — fim do período de coleta (ISO 8601, UTC)
-
-### 4.2. Executar a Coleta de Tweets
-
-```bash
-python -m python_app
-```
-
-O script `__main__.py`:
-1. Busca todos os logs com status `pending` no banco
-2. Para cada log pendente, chama a API do X v2 para o usuário e período definidos
-3. Faz a paginação automática dos resultados (`next_token`)
-4. Filtra e descarta tweets sem conteúdo de texto
-5. Insere os tweets na tabela `tweets`
-6. Atualiza o log com `start_time`, `end_time`, contagem de tweets e status (`completed` ou `partially_completed`)
-
----
-
-## 5. Classificação de Tweets
-
-### 5.1. Interface de Classificação Manual
+Antes da primeira coleta, popula `collection_log` com os períodos e usuários:
 
 ```bash
-streamlit run python_app/classifier_app.py
+python -m pipeline.01_extraction.collection_log
 ```
 
-Acesse em `http://localhost:8501`.
+Cada entrada em `config/search_terms_monthly.json` define:
+- `x_user_id` — ID do usuário no X (ex: InfoMoney = `59773459`)
+- `from_date_time` — início do período (ISO 8601, UTC)
+- `to_date_time` — fim do período (ISO 8601, UTC)
 
-O app possui duas páginas:
+### 4.2. Coleta
 
-**Classificador Manual**
+```bash
+make collect
+```
+
+1. Busca logs com status `pending` em `collection_log`
+2. Chama a API X v2 via `TwitterAPIExtractor` com paginação automática
+3. Insere tweets em `tweets`
+4. Atualiza o log com `start_time`, `end_time` e status (`completed` / `partially_completed`)
+
+#### Extensibilidade
+
+Novas fontes de dados implementam `BaseExtractor`:
+
+```python
+from pipeline.01_extraction.base_extractor import BaseExtractor
+
+class MyExtractor(BaseExtractor):
+    def fetch(self, user_id: str, from_dt: str, to_dt: str) -> list[dict]:
+        ...
+```
+
+### 4.3. Anotação Manual
+
+```bash
+make annotate
+# Acesse http://localhost:8501
+```
+
 - Exibe tweets não classificados um a um
-- Pergunta se o tweet é uma **notícia financeira** (Sim / Não)
+- Pergunta se o tweet é **notícia financeira** (Sim / Não)
 - Para tweets financeiros, solicita o **sentimento** (Positivo / Neutro / Negativo)
-- Permite adicionar uma justificativa para cada classificação
-- Exibe classificações anteriores (humana e/ou por modelos de IA)
-- Salva os resultados na tabela `tweets_classification` com o classificador `"Humano"`
+- Permite adicionar justificativa para cada classificação
+- Salva em `tweets_classification` com `classificator = "Humano"`
 
-**Dashboard de Análise**
-- Gráfico de pizza: distribuição de tweets financeiros vs. não financeiros vs. não classificados
-- Gráfico de pizza: distribuição de sentimentos (apenas tweets financeiros)
-- Estatísticas resumidas por categoria
+### 4.4. Exploração dos Dados (EDA)
+
+```bash
+make eda
+# Acesse http://localhost:8501
+```
+
+Dashboard com:
+- Distribuição de sentimentos e categorias (financeiro / não financeiro)
+- Distribuição temporal e por veículo
+- Análise de comprimento dos textos (caracteres e tokens)
+- Campos ausentes e publicações atípicas
 
 ---
 
-## 6. Fluxo do Pipeline
+## 5. Testes
 
+Os testes ficam junto ao módulo que testam (co-located), dentro de cada etapa do pipeline.
+
+```bash
+python -m pytest          # todos os testes
+python -m pytest -v       # com detalhes por teste
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     FASE 1: COLETA                      │
-│                                                         │
-│  json_data/*.json  →  collection_log.py                 │
-│  (termos de busca)     (popula collection_log           │
-│                         com status "pending")           │
-│                              │                          │
-│                              ▼                          │
-│                        __main__.py                      │
-│                    (lê logs "pending")                  │
-│                              │                          │
-│                              ▼                          │
-│                        x_tweets.py                      │
-│                    (API X v2 + paginação)                │
-│                              │                          │
-│                              ▼                          │
-│                       parse_tweet.py                    │
-│                    (parsing do JSON da API)              │
-│                              │                          │
-│                              ▼                          │
-│                        database.py                      │
-│                 (insert na tabela "tweets")              │
-│                 (update em "collection_log")             │
-└─────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────┐
-│                  FASE 2: CLASSIFICAÇÃO                  │
-│                                                         │
-│                     classifier.py                       │
-│               (Streamlit — classificação manual)        │
-│                              │                          │
-│                              ▼                          │
-│                        database.py                      │
-│            (insert em "tweets_classification"           │
-│             com classificador "Humano" ou IA)           │
-└─────────────────────────────────────────────────────────┘
+| Arquivo | Módulo testado | Cobertura |
+|---|---|---|
+| `04_preprocessing/text_cleaner_tests.py` | `text_cleaner.clean()` | URLs, emojis, menções, hashtags, espaços |
+| `05_processing/sentiment_analyzer_tests.py` | `sentiment_analyzer.run()` | saída antecipada, mapeamento de labels, FK correta, limpeza antes da inferência |
 
-┌─────────────────────────────────────────────────────────┐
-│                    FASE 3: ANÁLISE                      │
-│                                                         │
-│                      dashboard.py                       │
-│            (Streamlit — visualizações e métricas)       │
-│                              │                          │
-│                              ▼                          │
-│                  Queries SQL (arquivo QUERIES)          │
-│            (filtragem por hashtag, agregação            │
-│             por modo estatístico, etc.)                 │
-└─────────────────────────────────────────────────────────┘
-```
+A descoberta é configurada em `pytest.ini` na raiz: coleta arquivos `test_*.py` e `*_tests.py` dentro de `pipeline/`.
 
 ---
 
-## 7. Schema do Banco de Dados
+## 6. Banco de Dados
 
 ### Tabela `tweets`
-Armazena os tweets coletados da API.
 
 | Coluna | Tipo | Descrição |
 |---|---|---|
 | `id` | SERIAL | Chave primária |
 | `tweet_id` | VARCHAR(50) | ID único do tweet no X |
-| `username` | VARCHAR(100) | Nome de usuário do autor |
+| `username` | VARCHAR(100) | ID do autor (user_id da API) |
 | `note_tweet` | TEXT | Texto completo (tweets longos) |
 | `created_at` | TIMESTAMPTZ | Data/hora de publicação |
 | `likes` | INTEGER | Número de curtidas |
@@ -264,7 +274,6 @@ Armazena os tweets coletados da API.
 | `is_finance_news` | INTEGER | `1` = financeiro, `0` = não financeiro |
 
 ### Tabela `tweets_classification`
-Armazena as classificações (humanas e por IA) para cada tweet.
 
 | Coluna | Tipo | Descrição |
 |---|---|---|
@@ -274,10 +283,10 @@ Armazena as classificações (humanas e por IA) para cada tweet.
 | `why_sentiment` | TEXT | Justificativa do sentimento |
 | `is_finance_news` | INTEGER | Classificação financeiro/não financeiro |
 | `why_is_finance_news` | TEXT | Justificativa da classificação |
-| `classificator` | VARCHAR(100) | Ex: `"Humano"`, `"Sonnet 4.6"` |
+| `classificator` | VARCHAR(100) | `"Humano"` ou `"FinBERT-PT-BR"` |
+| `score` | REAL | Score de confiança do modelo (se aplicável) |
 
 ### Tabela `collection_log`
-Registra o histórico de coletas executadas.
 
 | Coluna | Tipo | Descrição |
 |---|---|---|
@@ -291,33 +300,35 @@ Registra o histórico de coletas executadas.
 
 ---
 
-## 8. Configuração do pgAdmin
+## 7. Configuração do pgAdmin
 
 Acesse em `http://localhost:5050` com as credenciais definidas em `.env`.
 
 **Conexão Superusuário:**
 ```
-Host: postgres
-Porta: 5432
-Banco: postgres
-Usuário: postgres
-Senha: $POSTGRES_PASSWORD
+Host: postgres | Porta: 5432 | Banco: postgres | Usuário: postgres
 ```
 
 **Conexão Aplicação:**
 ```
-Host: postgres
-Porta: 5432
-Banco: twitter_db
-Usuário: twitter_user
-Senha: $POSTGRES_TWITTER_PASSWORD
+Host: postgres | Porta: 5432 | Banco: twitter_db | Usuário: twitter_user
 ```
 
 ---
 
-## 9. Credenciais e Permissões
+## 8. Fontes de Dados
 
-| Perfil | Usuário | Banco | Privilégios |
-|---|---|---|---|
-| Superusuário | `postgres` | `postgres` | Todos |
-| Aplicação | `twitter_user` | `twitter_db` | SELECT, INSERT, UPDATE, DELETE |
+| Conta X | ID | Volume no dataset |
+|---|---|---|
+| InfoMoney | `59773459` | ~88,5% |
+| InvestingBrasil | `51150679` | ~11,5% |
+
+Dataset total: ~3.563 tweets (outubro/2025 a fevereiro/2026).
+Coleta via `GET /2/users/{id}/tweets` (API X v2, Bearer Token).
+
+---
+
+## 9. Repositórios
+
+- **TCC (LaTeX):** https://github.com/toninlopes/usp-tcc-mba-ia-bigdata
+- **Pipeline:** https://github.com/toninlopes/usp-tcc-pipeline-mba-ia-bigdata
