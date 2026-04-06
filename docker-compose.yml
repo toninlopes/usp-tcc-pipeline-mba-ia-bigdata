@@ -16,7 +16,7 @@ services:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d
+      - ./infra:/docker-entrypoint-initdb.d
     networks:
       - twitter-network
     healthcheck:

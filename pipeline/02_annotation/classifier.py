@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from database import DatabaseManager
+from shared.database import DatabaseManager
 from enum import Enum
 
 
@@ -315,29 +315,15 @@ if not classification_data.empty:
             "Justificativa Sentimento": classification_data["why_sentiment"].tolist(),
         }
     )
-    col_widths = {
-        "Classificador": "10%",
-        "Financeiro": "8%",
-        "Justificativa Financeiro": "32%",
-        "Sentimento": "8%",
-        "Justificativa Sentimento": "42%",
-    }
-    header = "".join(
-        f'<th style="width:{col_widths[c]};padding:6px;border:1px solid #444;text-align:left">{c}</th>'
-        for c in data_table.columns
-    )
-    rows = "".join(
-        "<tr>"
-        + "".join(
-            f'<td style="padding:6px;border:1px solid #444;white-space:pre-wrap;word-break:break-word">{v}</td>'
-            for v in row
-        )
-        + "</tr>"
-        for row in data_table.itertuples(index=False)
-    )
-    st.markdown(
-        f'<table style="width:100%;border-collapse:collapse;font-size:0.9rem"><thead><tr>{header}</tr></thead><tbody>{rows}</tbody></table>',
-        unsafe_allow_html=True,
+    st.dataframe(
+        data_table,
+        column_config={
+            "Classificador": st.column_config.TextColumn(width="small"),
+            "Financeiro": st.column_config.TextColumn(width="small"),
+            "Justificativa Financeiro": st.column_config.TextColumn(width="medium"),
+            "Sentimento": st.column_config.TextColumn(width="small"),
+            "Justificativa Sentimento": st.column_config.TextColumn(width="large"),
+        },
     )
 else:
     st.info("Esse tweet ainda não possui justificativa para a classificação.")

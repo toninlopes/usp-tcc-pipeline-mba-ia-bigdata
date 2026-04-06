@@ -1,7 +1,7 @@
-from database import DatabaseManager
-from collection_log import SearchTerm
-from parse_tweet import Tweet, Tweets
-from x_tweets import TweetCollector
+from shared.database import DatabaseManager
+from .collection_log import SearchTerm
+from shared.models import Tweet, Tweets
+from .twitter_api import TwitterAPIExtractor
 import pytz
 from datetime import datetime
 
@@ -24,25 +24,20 @@ if __name__ == "__main__":
         # Convert to UTC and format as ISO 8601 with 'Z' suffix
         utc_time = now_sao_paulo.astimezone(pytz.UTC)
         formatted_time = utc_time.strftime('%Y-%m-%dT%H:%M:%SZ')
-        db_manager.update_log(log[0], {'start_time': formatted_time})  # Atualizando status para 'in_progress'
-        
+        db_manager.update_log(log[0], {'start_time': formatted_time})
+
         total_tweets_inserted = 0
         tweets_not_inserted = list[Tweet]()
-        next_token = ''        
+        next_token = ''
         while True:
-            collector = TweetCollector(search_term.x_user_id, search_term.from_date_time, search_term.to_date_time, next_token)
+            collector = TwitterAPIExtractor(search_term.x_user_id, search_term.from_date_time, search_term.to_date_time, next_token)
             tweets_data = collector.make_request()
             tweets = Tweets(tweets_data)
 
             for tweet in tweets.data:
                 if tweet.note_tweet is None or tweet.note_tweet.text is None or tweet.text is None:
                     print(f"Tweet {tweet.id} has no text content. Skipping insertion.")
-                    continue # Pulando tweets que são apenas notas
-
-                query = """
-                INSERT INTO tweets (tweet_id, username, note_tweet, created_at, likes, hashtags, tweet)
-                VALUES (%s, %s, %s, %s, %s, %s, %s);
-                """
+                    continue
 
                 inserted = db_manager.insert_tweet({
                     'tweet_id': tweet.id,
@@ -64,11 +59,11 @@ if __name__ == "__main__":
             else:
                 next_token = ''
                 break
-        
+
         utc_time = now_sao_paulo.astimezone(pytz.UTC)
         formatted_time = utc_time.strftime('%Y-%m-%dT%H:%M:%SZ')
         db_manager.update_log(log[0], {
             'end_time': formatted_time,
             'tweets_collected': total_tweets_inserted,
             'status': 'completed' if len(tweets_not_inserted) == 0 and total_tweets_inserted > 0 else 'partially_completed'
-        })  # Atualizando status para 'in_progress'
+        })
