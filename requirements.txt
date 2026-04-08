@@ -18,6 +18,8 @@ scikit-learn==1.6.1
 # NLP / FinBERT-PT-BR
 transformers==4.51.1
 torch==2.6.0
+nltk==3.8.1
+spacy==3.7.4
 
 # Utilities
 click==8.1.7

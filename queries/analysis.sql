@@ -116,3 +116,7 @@ WHERE classificator = 'FinBERT-PT-BR';
 
 DELETE FROM tweets_classification
 WHERE classificator = 'FinBERT-PT-BR';
+
+
+SELECT t.note_tweet FROM tweets t
+WHERE note_tweet ~ '\m[A-Z]{4,5}[0-9]{1,2}\M';
