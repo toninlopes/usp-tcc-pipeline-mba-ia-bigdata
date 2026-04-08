@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS tweets_classification (
     why_sentiment TEXT, -- Justificativa para a classificação de sentimento
     is_finance_news INTEGER, -- e.g., 1 para notícias financeiras, 0 para outras
     why_is_finance_news TEXT, -- Justificativa para classificar como notícia financeira
-    classificator VARCHAR(100) UNIQUE, -- e.g., 'Sonnet 4.6', 'Gemini 3', 'ChatGPT 4.0', etc.
+    classificator VARCHAR(100), -- e.g., 'Sonnet 4.6', 'Gemini 3', 'ChatGPT 4.0', etc.
     score REAL, -- Score de confiança da classificação (se aplicável)
     CONSTRAINT fk_tweet FOREIGN KEY (tweet_id) REFERENCES tweets(id) ON DELETE CASCADE,
     CONSTRAINT uq_tweet_classificator UNIQUE (classificator)
