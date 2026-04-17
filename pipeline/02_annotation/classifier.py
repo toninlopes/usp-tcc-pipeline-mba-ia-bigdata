@@ -93,6 +93,7 @@ def load_classification_data(tweet_id: int):
             "is_finance_news",
             "why_is_finance_news",
             "classificator",
+            "score",
         ],
     )
     df = df.drop(columns=["id", "tweet_id"])

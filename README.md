@@ -48,19 +48,22 @@ collect-twitter-data/
 │   │   └── eda.py                          # Análise textual (comprimento, tokens, etc.)
 │   │
 │   ├── 04_preprocessing/                   # Limpeza textual
-│   │   ├── text_cleaner.py                 # clean(): remove URLs, emojis, menções, hashtags
-│   │   └── text_cleaner_tests.py           # Testes unitários de text_cleaner
+│   │   └── preprocessing_dashboard.py      # Impacto cumulativo de cada etapa no FinBERT
 │   │
 │   ├── 05_processing/                      # Inferência do modelo
-│   │   ├── sentiment_analyzer.py           # FinBERT-PT-BR → tweets_classification
-│   │   └── sentiment_analyzer_tests.py     # Testes unitários de sentiment_analyzer
+│   │   ├── base_model.py                   # ABC: BaseSentimentAnalyzer (fetch→preprocess→predict→save)
+│   │   ├── fin_bert_timbau.py              # FinBERTAnalyzer(BaseSentimentAnalyzer)
+│   │   ├── fin_bert_timbau_tests.py        # Testes unitários de FinBERTAnalyzer
+│   │   └── processing_dashboard.py         # Dashboard de classificação com comparação humano vs. modelo
 │   │
 │   └── 06_evaluation/                      # Avaliação dos resultados
 │       └── metrics.py                      # Acurácia, F1, matriz de confusão
 │
 ├── shared/                                 # Código transversal a todas as etapas
 │   ├── database.py                         # DatabaseManager (conexão e queries)
-│   └── models.py                           # Dataclasses de parsing da API X
+│   ├── models.py                           # Dataclasses de parsing da API X
+│   ├── text_cleaner.py                     # Funções de limpeza textual (URLs, emojis, stopwords, lematização)
+│   └── text_cleaner_tests.py               # Testes unitários de text_cleaner
 │
 └── queries/
     └── analysis.sql                        # Queries SQL utilitárias para análise
@@ -170,8 +173,8 @@ Todos os comandos são executados a partir da raiz do projeto via `make`:
 | `make collect` | Coleta tweets via API X v2 | Implementado |
 | `make annotate` | Anotação manual (Streamlit) | Implementado |
 | `make eda` | Dashboard de exploração dos dados | Implementado |
-| `make preprocess` | Limpeza textual para o FinBERT | Implementado |
-| `make process` | Inferência com FinBERT-PT-BR | Implementado |
+| `make preprocess` | Dashboard de impacto do pré-processamento | Implementado |
+| `make process` | Dashboard de classificação com FinBERT-PT-BR | Implementado |
 | `make evaluate` | Métricas de avaliação | A implementar |
 
 ### 4.1. Registrar os Termos de Busca
@@ -236,11 +239,51 @@ Dashboard com:
 - Análise de comprimento dos textos (caracteres e tokens)
 - Campos ausentes e publicações atípicas
 
+### 4.5. Pré-processamento
+
+```bash
+make preprocess
+# Acesse http://localhost:8501
+```
+
+Dashboard interativo que aplica as etapas de limpeza de forma **cumulativa** (URL → Emojis → Menções → Hashtags → Espaços → Caixa baixa → Stopwords → Lematização) e executa o FinBERT-PT-BR após cada etapa, permitindo avaliar o impacto de cada passo na classificação final.
+
+As funções de limpeza residem em `shared/text_cleaner.py` e são compartilhadas entre `04_preprocessing` e `05_processing`.
+
+### 4.6. Processamento (Inferência)
+
+```bash
+make process
+# Acesse http://localhost:8501
+```
+
+Dashboard de classificação que:
+- Seleciona o algoritmo (atualmente FinBERT-PT-BR; arquitetura extensível via `BaseSentimentAnalyzer`)
+- Classifica tweets financeiros com anotação humana existente
+- Compara sentimento do modelo com o sentimento humano tweet a tweet
+- Exibe métricas de concordância e permite salvar as classificações no banco
+
+#### Extensibilidade
+
+Novos modelos implementam `BaseSentimentAnalyzer`:
+
+```python
+from pipeline.05_processing.base_model import BaseSentimentAnalyzer
+
+class MyModelAnalyzer(BaseSentimentAnalyzer):
+    classificator = "MyModel"
+
+    def load_model(self): ...
+    def preprocess(self, text: str) -> str: ...
+    def predict_text(self, text: str, batch_size: int) -> list[dict]: ...
+    def run(self) -> pd.DataFrame: ...
+```
+
 ---
 
 ## 5. Testes
 
-Os testes ficam junto ao módulo que testam (co-located), dentro de cada etapa do pipeline.
+Os testes ficam junto ao módulo que testam (co-located), dentro de `pipeline/` ou `shared/`.
 
 ```bash
 python -m pytest          # todos os testes
@@ -249,10 +292,10 @@ python -m pytest -v       # com detalhes por teste
 
 | Arquivo | Módulo testado | Cobertura |
 |---|---|---|
-| `04_preprocessing/text_cleaner_tests.py` | `text_cleaner.clean()` | URLs, emojis, menções, hashtags, espaços |
-| `05_processing/sentiment_analyzer_tests.py` | `sentiment_analyzer.run()` | saída antecipada, mapeamento de labels, FK correta, limpeza antes da inferência |
+| `shared/text_cleaner_tests.py` | funções de `text_cleaner` | URLs, emojis, menções, hashtags, espaços, stopwords, lematização |
+| `pipeline/05_processing/fin_bert_timbau_tests.py` | `FinBERTAnalyzer` | atributos de classe, `preprocess`, `normalize_label`, `predict_text`, `run`, `save` |
 
-A descoberta é configurada em `pytest.ini` na raiz: coleta arquivos `test_*.py` e `*_tests.py` dentro de `pipeline/`.
+A descoberta é configurada em `pytest.ini` na raiz: coleta arquivos `test_*.py` e `*_tests.py` dentro de `pipeline/` e `shared/`.
 
 ---
 

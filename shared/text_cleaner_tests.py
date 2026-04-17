@@ -1,9 +1,9 @@
-import importlib.util
-from pathlib import Path
+import pytest
 
-from text_cleaner import (
+from shared.text_cleaner import (
     replace_urls,
     remove_emojis,
+    replace_emojis_with_codes,
     replace_mentions,
     remove_hashtags,
     space_normalization,
@@ -12,8 +12,6 @@ from text_cleaner import (
     lematize,
     clean,
 )
-
-import pytest
 
 
 class TestURLCleaning:
@@ -36,17 +34,30 @@ class TestURLCleaning:
 
 class TestEmojiHandling:
     def test_emoji_converted_to_name_code(self):
-        result = remove_emojis("🚨 Alerta!")
+        result = replace_emojis_with_codes("🚨 Alerta!")
         assert "🚨" not in result
         assert ":police_car_light:" in result
 
     def test_multiple_emojis_converted(self):
-        result = remove_emojis("📈📉")
+        result = replace_emojis_with_codes("📈📉")
         assert "📈" not in result
+        assert ":chart_increasing:" in result
         assert "📉" not in result
+        assert ":chart_decreasing:" in result
 
     def test_text_without_emoji_unchanged(self):
-        assert remove_emojis("Texto normal") == "Texto normal"
+        assert replace_emojis_with_codes("Texto normal") == "Texto normal"
+
+    def test_removed_emoji(self):
+        result = remove_emojis("🚨 Alerta!")
+        assert "🚨" not in result
+        assert ":police_car_light:" not in result
+
+        result = remove_emojis("📈📉")
+        assert "📈" not in result
+        assert ":chart_increasing:" not in result
+        assert "📉" not in result
+        assert ":chart_decreasing:" not in result
 
 
 class TestMentionCleaning:

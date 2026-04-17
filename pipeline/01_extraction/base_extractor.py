@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class BaseExtractor(ABC):
     """Interface abstrata para extratores de dados.
     Permite adicionar novas fontes (web scraping, RSS, etc.)
