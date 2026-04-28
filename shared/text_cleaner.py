@@ -9,17 +9,55 @@ nltk.download("stopwords", quiet=True)
 FINANCIAL_ENTITIES: frozenset[str] = frozenset(
     {
         # Bancos e corretoras
-        "BB", "BBI", "BNDES", "BRB", "BTG", "IRB", "UBS", "XP",
+        "BB",
+        "BBI",
+        "BNDES",
+        "BRB",
+        "BTG",
+        "IRB",
+        "UBS",
+        "XP",
         # Órgãos reguladores e fiscalizadores
-        "ANATEL", "BACEN", "BCB", "CADE", "CVM", "IBGE", "TCU",
+        "ANATEL",
+        "BACEN",
+        "BCB",
+        "CADE",
+        "CVM",
+        "IBGE",
+        "TCU",
         # Infraestrutura e política monetária
-        "B3", "COPOM", "SELIC",
+        "B3",
+        "COPOM",
+        "SELIC",
         # Índices e instrumentos financeiros
-        "BDR", "CDI", "CRI", "DY", "EPS", "FI", "FII",
-        "IBOV", "IBOVESPA", "IFIX", "IPCA", "IPO",
-        "JCP", "OPA", "PLR", "PN", "ROE",
+        "BDR",
+        "CDI",
+        "CRI",
+        "DY",
+        "EPS",
+        "FI",
+        "FII",
+        "IBOV",
+        "IBOVESPA",
+        "IFIX",
+        "IPCA",
+        "IPO",
+        "JCP",
+        "OPA",
+        "PLR",
+        "PN",
+        "ROE",
     }
 )
+
+_nlp = None
+
+
+def _get_nlp():
+    global _nlp
+    if _nlp is None:
+        _nlp = spacy.load("pt_core_news_lg")
+    return _nlp
 
 
 def replace_urls(text: str) -> str:
@@ -72,8 +110,7 @@ def find_emoji_codes(text: str) -> list[str]:
 
 
 def lematize(text: str) -> str:
-    nlp = spacy.load("pt_core_news_lg")
-    doc = nlp(text)
+    doc = _get_nlp()(text)
     return " ".join(token.lemma_ for token in doc)
 
 
