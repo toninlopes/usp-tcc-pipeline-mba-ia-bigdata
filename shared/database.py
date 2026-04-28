@@ -140,6 +140,28 @@ class DatabaseManager:
                 conn.rollback()
             return False
 
+    def execute_query(self, query: str, params: Optional[tuple] = None) -> list:
+        """
+        Executes a given SQL query with optional parameters.
+
+        Args:
+            query (str): The SQL query to execute.
+            params (tuple, optional): Parameters to pass to the query.
+
+        Returns:
+            list: A list of results returned by the query.
+        """
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(query, params)
+                    results = cur.fetchall()
+                    logger.info("Query executed successfully.")
+                    return results
+        except Exception as e:
+            logger.error(f"Failed to execute query: {e}")
+            return []
+
     def query_all_tweets(self) -> list:
         """
         Queries the tweets table for all entries.

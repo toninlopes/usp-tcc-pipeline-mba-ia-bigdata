@@ -250,3 +250,14 @@ SELECT t.note_tweet
 FROM tweets t
 WHERE
     note_tweet ~ '\m[A-Z]{4,5}[0-9]{1,2}\M';
+
+
+SELECT
+    t.*,
+    EXISTS (
+        SELECT 1 FROM tweets_classification tc
+        WHERE tc.tweet_id = t.id
+        AND tc.classificator = 'Humano'
+    ) AS has_human_classification
+FROM tweets t
+ORDER BY t.created_at DESC;

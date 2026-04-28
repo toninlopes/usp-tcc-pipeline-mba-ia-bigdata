@@ -12,6 +12,9 @@ eda:
 preprocess:
 	python -m pipeline.04_preprocessing
 
+finetune:
+	python -m pipeline.05_processing.bert_timbau_fine_tuner
+	
 process:
 	python -m pipeline.05_processing
 

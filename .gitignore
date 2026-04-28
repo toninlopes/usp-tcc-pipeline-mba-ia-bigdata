@@ -3,3 +3,6 @@
 .vscode/extensions.json
 .vscode/launch.json
 .vscode/settings.json
+*.safetensors
+*.bin
+models/bert-timbau-sentiment/checkpoints/
