@@ -1,9 +1,6 @@
 import sys
 from pathlib import Path
-import io
 import urllib.request
-
-from black import lines
 from numpy.ma import filled
 import pandas as pd
 from plotly.express import bar
@@ -14,10 +11,8 @@ from shared.text_cleaner import (
     replace_urls,
     replace_emojis_with_codes,
     replace_mentions,
-    remove_hashtags,
     space_normalization,
     lowercase_normalization,
-    lematize_batch,
 )
 from base_model import BaseSentimentAnalyzer
 
