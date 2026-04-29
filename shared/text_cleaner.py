@@ -64,6 +64,10 @@ def replace_urls(text: str) -> str:
     return re.sub(r"http\S+", "[URL]", text)
 
 
+def remove_urls(text: str) -> str:
+    return re.sub(r"http\S+", "", text)
+
+
 def remove_emojis(text: str) -> str:
     return emoji.replace_emoji(text, "")
 
