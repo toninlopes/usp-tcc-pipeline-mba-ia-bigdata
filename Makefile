@@ -1,25 +1,22 @@
 .PHONY: collect annotate eda preprocess process evaluate db-up db-down
 
 collect:
-	python -m pipeline.01_extraction
+	PYTHONPATH=. python -m app.core.extraction
 
 annotate:
-	streamlit run pipeline/02_annotation/app.py
+	PYTHONPATH=. streamlit run app/dashboard/app.py
 
 eda:
-	streamlit run pipeline/03_eda/dashboard.py
+	PYTHONPATH=. streamlit run app/dashboard/app.py
 
 preprocess:
-	python -m pipeline.04_preprocessing
+	PYTHONPATH=. streamlit run app/dashboard/app.py
 
-finetune:
-	python -m pipeline.05_processing.bert_timbau_fine_tuner
-	
 process:
-	python -m pipeline.05_processing
+	PYTHONPATH=. streamlit run app/dashboard/app.py
 
 evaluate:
-	python -m pipeline.06_evaluation
+	PYTHONPATH=. python -m app.core.evaluation
 
 db-up:
 	docker-compose up -d
