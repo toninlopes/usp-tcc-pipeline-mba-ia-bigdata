@@ -16,7 +16,7 @@ for _mod in [
 ]:
     sys.modules.setdefault(_mod, MagicMock())
 
-from app.core.processing.finbert_ptbr import FinBertPTBRAnalyzer
+from app.core.processing.bert.finbert_ptbr import FinBertPTBRAnalyzer
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

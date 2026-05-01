@@ -3,7 +3,7 @@ from typing import Dict
 from unittest.mock import MagicMock, mock_open, patch
 import pytest
 
-from app.core.processing.senti_lex import (
+from app.core.processing.lexicon.senti_lex import (
     SentiLexAnalyzer,
     _apply_negation,
     _confidence,

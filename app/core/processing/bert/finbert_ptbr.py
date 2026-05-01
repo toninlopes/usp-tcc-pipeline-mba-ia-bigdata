@@ -3,7 +3,7 @@ from transformers.pipelines import pipeline
 from transformers.models.bert import BertForSequenceClassification
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 
-from app.core.processing.bert_analyzer import BertSentimentAnalyzer
+from app.core.processing.bert.bert_analyzer import BertSentimentAnalyzer
 from app.shared.text_cleaner import (
     replace_urls,
     remove_emojis,

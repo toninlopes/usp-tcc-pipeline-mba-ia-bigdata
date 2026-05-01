@@ -3,17 +3,21 @@ import pandas as pd
 
 from app.shared.db_tweets import TweetsRepository
 from app.shared.db_classification import ClassificationRepository
-from app.core.processing.finbert_ptbr import FinBertPTBRAnalyzer
-from app.core.processing.senti_lex import SentiLexAnalyzer
-from app.core.processing.op_lexicon import OpLexiconAnalyzer
+from app.core.processing.bert.finbert_ptbr import FinBertPTBRAnalyzer
+from app.core.processing.lexicon.senti_lex import SentiLexAnalyzer
+from app.core.processing.lexicon.op_lexicon import OpLexiconAnalyzer
+from app.core.processing.bert.bert_timbau import BERTimbauAnalyzer
+
 
 tweet_repo = TweetsRepository()
 classification_repo = ClassificationRepository()
 
+
 ALGORITHMS = {
-    "FinBERT-PT-BR": {"cls": FinBertPTBRAnalyzer, "ready": True, "note": None},
-    "SentiLex-PT":   {"cls": SentiLexAnalyzer,    "ready": True, "note": None},
-    "OpLexicon":     {"cls": OpLexiconAnalyzer,    "ready": True, "note": None},
+    "FinBERT-PT-BR": {"cls": FinBertPTBRAnalyzer, "ready": True,  "note": None},
+    "BERTimbau":     {"cls": BERTimbauAnalyzer,    "ready": False, "note": "Requer fine-tuning prévio. Execute: python -m app.core.processing.bert_timbau_fine_tuner"},
+    "SentiLex-PT":   {"cls": SentiLexAnalyzer,     "ready": True,  "note": None},
+    "OpLexicon":     {"cls": OpLexiconAnalyzer,     "ready": True,  "note": None},
 }
 
 

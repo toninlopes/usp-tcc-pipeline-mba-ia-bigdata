@@ -3,7 +3,7 @@ from typing import Dict
 from unittest.mock import MagicMock, patch
 import pytest
 
-from app.core.processing.op_lexicon import OpLexiconAnalyzer, _THRESHOLD
+from app.core.processing.lexicon.op_lexicon import OpLexiconAnalyzer, _THRESHOLD
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from app.core.processing.lexicon_analyzer import LexiconSentimentAnalyzer
+from app.core.processing.lexicon.lexicon_analyzer import LexiconSentimentAnalyzer
 
 
 # ── Implementação mínima para testar a classe abstrata ────────────────────────

@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 
 import pandas as pd
 
-from app.core.processing.lexicon_analyzer import LexiconSentimentAnalyzer
+from app.core.processing.lexicon.lexicon_analyzer import LexiconSentimentAnalyzer
 from app.shared.text_cleaner import (
     replace_urls,
     replace_emojis_with_codes,
