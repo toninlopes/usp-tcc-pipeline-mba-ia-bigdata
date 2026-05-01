@@ -24,6 +24,16 @@ project/
 │   ├── core/                     ← lógica de negócio (sem UI)
 │   │   ├── extraction/           ← coleta via API X v2
 │   │   ├── processing/           ← inferência de sentimento
+│   │   │   ├── base_analyzer.py  ← contrato público (ABC)
+│   │   │   ├── bert/             ← modelos baseados em BERT
+│   │   │   │   ├── bert_analyzer.py
+│   │   │   │   ├── finbert_ptbr.py
+│   │   │   │   ├── bert_timbau.py
+│   │   │   │   └── bert_timbau_fine_tuner.py
+│   │   │   └── lexicon/          ← modelos baseados em léxico
+│   │   │       ├── lexicon_analyzer.py
+│   │   │       ├── senti_lex.py
+│   │   │       └── op_lexicon.py
 │   │   └── evaluation/           ← métricas de avaliação
 │   ├── dashboard/                ← UI Streamlit (sem lógica de negócio)
 │   │   ├── app.py                ← entrypoint multi-página
@@ -39,6 +49,8 @@ project/
 ├── config/                       ← termos de busca (JSON)
 ├── data/                         ← léxicos (SentiLex-PT02, OpLexicon v3.0)
 ├── infra/                        ← scripts de inicialização do banco
+├── models/                       ← modelos fine-tuned (gerados localmente)
+│   └── bert-timbau-sentiment/    ← produzido por bert_timbau_fine_tuner.py
 ├── queries/                      ← SQL utilitário
 ├── tests/
 │   └── fixtures/                 ← JSONs de exemplo para testes manuais
@@ -61,7 +73,8 @@ a partir de `app.*`:
 ```python
 # correto
 from app.shared.db_tweets import TweetsRepository
-from app.core.processing.finbert_ptbr import FinBertPTBRAnalyzer
+from app.core.processing.bert.finbert_ptbr import FinBertPTBRAnalyzer
+from app.core.processing.lexicon.senti_lex import SentiLexAnalyzer
 
 # errado — nunca usar sys.path.insert
 ```
@@ -93,17 +106,19 @@ Usar os repositórios específicos:
 ## 4. Hierarquia de modelos de sentimento
 
 ```
-BaseSentimentAnalyzer          (app/core/processing/base_analyzer.py)
-├── BertSentimentAnalyzer      (app/core/processing/bert_analyzer.py)
-│   └── FinBertPTBRAnalyzer    (app/core/processing/finbert_ptbr.py)
-└── LexiconSentimentAnalyzer   (app/core/processing/lexicon_analyzer.py)
-    ├── SentiLexAnalyzer       (app/core/processing/senti_lex.py)
-    └── OpLexiconAnalyzer      (app/core/processing/op_lexicon.py)
+BaseSentimentAnalyzer              (processing/base_analyzer.py)
+├── BertSentimentAnalyzer          (processing/bert/bert_analyzer.py)
+│   ├── FinBertPTBRAnalyzer        (processing/bert/finbert_ptbr.py)
+│   └── BERTimbauAnalyzer          (processing/bert/bert_timbau.py)
+└── LexiconSentimentAnalyzer       (processing/lexicon/lexicon_analyzer.py)
+    ├── SentiLexAnalyzer           (processing/lexicon/senti_lex.py)
+    └── OpLexiconAnalyzer          (processing/lexicon/op_lexicon.py)
 ```
 
 Para adicionar um novo modelo BERT:
 
 ```python
+# app/core/processing/bert/my_bert.py
 class MyBertAnalyzer(BertSentimentAnalyzer):
     model_name = "org/my-model"
     classificator = "MyModel"
@@ -116,6 +131,7 @@ class MyBertAnalyzer(BertSentimentAnalyzer):
 Para adicionar um novo léxico:
 
 ```python
+# app/core/processing/lexicon/my_lexicon.py
 class MyLexiconAnalyzer(LexiconSentimentAnalyzer):
     classificator = "MyLexicon"
 
@@ -134,6 +150,7 @@ A tabela `tweets_classification` diferencia a origem de cada anotação:
 |-------------------|----------------------------------------|
 | `"Humano"`        | Anotação via dashboard (annotation.py) |
 | `"FinBERT-PT-BR"` | Inferência FinBertPTBRAnalyzer         |
+| `"BERTimbau"`     | Inferência BERTimbauAnalyzer           |
 | `"SentiLex-PT"`   | Inferência SentiLexAnalyzer            |
 | `"OpLexicon"`     | Inferência OpLexiconAnalyzer           |
 
@@ -203,18 +220,38 @@ make db-down      # para os containers
 Testes ficam co-localizados com o módulo que testam (`*_tests.py`).
 
 ```bash
-python -m pytest app/ -v          # todos os testes
-python -m pytest app/shared/ -v   # apenas shared
-python -m pytest app/core/ -v     # apenas core
+python -m pytest app/ -v                          # todos os testes
+python -m pytest app/shared/ -v                   # apenas shared
+python -m pytest app/core/ -v                     # apenas core
+python -m pytest app/core/processing/bert/ -v     # apenas modelos BERT
+python -m pytest app/core/processing/lexicon/ -v  # apenas modelos léxicos
 ```
 
 Fixtures e helpers compartilhados ficam em `app/shared/conftest.py`.
 
 ---
 
-## 9. Léxicos de sentimento
+## 9. Fine-tuning do BERTimbau
 
-Os arquivos de léxico não estão no repositório e precisam ser obtidos separadamente.
+O `BERTimbauAnalyzer` requer um modelo treinado localmente antes de ser usado.
+
+```bash
+# Treinar o modelo (requer mínimo ~300 tweets anotados)
+python -m app.core.processing.bert.bert_timbau_fine_tuner
+
+# O modelo será salvo em:
+# models/bert-timbau-sentiment/
+```
+
+O fine-tuner usa split estratificado 70/15/15, `WeightedTrainer` para lidar
+com desbalanceamento de classes e `EarlyStoppingCallback` com paciência de 2 épocas.
+
+---
+
+## 10. Léxicos de sentimento
+
+Os arquivos de léxico não estão no repositório e são baixados automaticamente
+na primeira instanciação de cada analisador.
 
 | Léxico         | Caminho esperado                               | Fonte                             |
 |----------------|------------------------------------------------|-----------------------------------|
@@ -223,7 +260,7 @@ Os arquivos de léxico não estão no repositório e precisam ser obtidos separa
 
 ---
 
-## 10. Fontes de dados
+## 11. Fontes de dados
 
 | Conta X         | ID         | Volume no dataset |
 |-----------------|------------|-------------------|
@@ -235,7 +272,7 @@ Coleta via `GET /2/users/{id}/tweets` (API X v2, Bearer Token).
 
 ---
 
-## 11. Repositórios
+## 12. Repositórios
 
 - **TCC (LaTeX):** https://github.com/toninlopes/usp-tcc-mba-ia-bigdata
 - **Pipeline:** https://github.com/toninlopes/usp-tcc-pipeline-mba-ia-bigdata

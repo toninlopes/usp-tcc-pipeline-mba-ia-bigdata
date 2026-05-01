@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 from typing import Any, Tuple
 import pytest
 
-from app.core.processing.bert_analyzer import BertSentimentAnalyzer
+from app.core.processing.bert.bert_analyzer import BertSentimentAnalyzer
 
 
 # ── Implementação mínima para testar a classe abstrata ────────────────────────
