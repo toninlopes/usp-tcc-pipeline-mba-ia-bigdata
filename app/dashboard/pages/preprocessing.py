@@ -4,7 +4,7 @@ from transformers.pipelines import pipeline as hf_pipeline
 from transformers.models.bert import BertForSequenceClassification
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 
-from app.shared.db_tweets import TweetsRepository
+from app.shared.db.tweets import TweetsRepository
 from app.shared.text_cleaner import (
     replace_urls, remove_emojis, replace_mentions, remove_hashtags,
     space_normalization, lowercase_normalization, remove_stopwords, lematize,

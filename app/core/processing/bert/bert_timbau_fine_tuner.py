@@ -33,7 +33,7 @@ from transformers.trainer import Trainer
 from transformers.trainer_callback import EarlyStoppingCallback
 from transformers.training_args import TrainingArguments
 
-from app.shared.db_tweets import TweetsRepository
+from app.shared.db.tweets import TweetsRepository
 from app.shared.text_cleaner import (
     remove_hashtags,
     replace_emojis_with_codes,

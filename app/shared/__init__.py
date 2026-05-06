@@ -1,7 +1,7 @@
-from app.shared.database import DatabaseManager
-from app.shared.db_tweets import TweetsRepository
-from app.shared.db_classification import ClassificationRepository
-from app.shared.db_collection_log import CollectionLogRepository
+from app.shared.db.database import DatabaseManager
+from app.shared.db.tweets import TweetsRepository
+from app.shared.db.classification import ClassificationRepository
+from app.shared.db.collection_log import CollectionLogRepository
 from app.shared.text_cleaner import (
     replace_urls,
     remove_emojis,

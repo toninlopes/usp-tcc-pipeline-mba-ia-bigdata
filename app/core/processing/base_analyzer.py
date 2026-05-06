@@ -3,8 +3,8 @@ from typing import Tuple
 
 import pandas as pd
 
-from app.shared.db_tweets import TweetsRepository
-from app.shared.db_classification import ClassificationRepository
+from app.shared.db.tweets import TweetsRepository
+from app.shared.db.classification import ClassificationRepository
 
 
 class BaseSentimentAnalyzer(ABC):

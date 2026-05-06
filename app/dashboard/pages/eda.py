@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from app.shared.db_tweets import TweetsRepository
+from app.shared.db.tweets import TweetsRepository
 
 tweet_repo = TweetsRepository()
 

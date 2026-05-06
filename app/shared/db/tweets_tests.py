@@ -1,10 +1,10 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, call
 import pandas as pd
 import numpy as np
 import pytest
 
-from app.shared.db_tweets import TweetsRepository
-from app.shared.conftest import make_repo, mock_get_connection
+from app.shared.db.tweets import TweetsRepository
+from app.shared.test_helpers import make_repo, mock_get_connection
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

@@ -96,7 +96,7 @@ SAMPLE_LEXICON: Dict[str, int] = {
 
 @pytest.fixture
 def analyzer():
-    with patch("app.shared.database.load_dotenv"):
+    with patch("app.shared.db.database.load_dotenv"):
         instance = SentiLexAnalyzer.__new__(SentiLexAnalyzer)
         instance._tweet_repo = MagicMock()
         instance._classification_repo = MagicMock()
@@ -111,7 +111,7 @@ class TestLoadModel:
     def test_parses_positive_entry(self, tmp_path):
         lex_file = tmp_path / "sentiLex-PT02.txt"
         lex_file.write_text("bom.Adj,Flex=boa;POL:N0=1\n", encoding="utf-8")
-        with patch("app.shared.database.load_dotenv"):
+        with patch("app.shared.db.database.load_dotenv"):
             instance = SentiLexAnalyzer.__new__(SentiLexAnalyzer)
             instance._tweet_repo = MagicMock()
             instance._classification_repo = MagicMock()
@@ -123,7 +123,7 @@ class TestLoadModel:
     def test_parses_negative_entry(self, tmp_path):
         lex_file = tmp_path / "sentiLex-PT02.txt"
         lex_file.write_text("ruim.Adj,Flex=ruins;POL:N0=-1\n", encoding="utf-8")
-        with patch("app.shared.database.load_dotenv"):
+        with patch("app.shared.db.database.load_dotenv"):
             instance = SentiLexAnalyzer.__new__(SentiLexAnalyzer)
             instance._tweet_repo = MagicMock()
             instance._classification_repo = MagicMock()
@@ -135,7 +135,7 @@ class TestLoadModel:
     def test_skips_malformed_lines(self, tmp_path):
         lex_file = tmp_path / "sentiLex-PT02.txt"
         lex_file.write_text("linha_invalida_sem_ponto_virgula\n", encoding="utf-8")
-        with patch("app.shared.database.load_dotenv"):
+        with patch("app.shared.db.database.load_dotenv"):
             instance = SentiLexAnalyzer.__new__(SentiLexAnalyzer)
             instance._tweet_repo = MagicMock()
             instance._classification_repo = MagicMock()
@@ -146,7 +146,7 @@ class TestLoadModel:
 
     def test_raises_if_not_found_after_download(self, tmp_path):
         missing = tmp_path / "missing.txt"
-        with patch("app.shared.database.load_dotenv"):
+        with patch("app.shared.db.database.load_dotenv"):
             instance = SentiLexAnalyzer.__new__(SentiLexAnalyzer)
             instance._tweet_repo = MagicMock()
             instance._classification_repo = MagicMock()

@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.shared.db_collection_log import CollectionLogRepository
+from app.shared.db.collection_log import CollectionLogRepository
 
 
 @dataclass

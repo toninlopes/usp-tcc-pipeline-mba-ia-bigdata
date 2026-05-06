@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 from enum import Enum
 
-from app.shared.db_tweets import TweetsRepository
-from app.shared.db_classification import ClassificationRepository
+from app.shared.db.tweets import TweetsRepository
+from app.shared.db.classification import ClassificationRepository
 
 tweet_repo = TweetsRepository()
 classification_repo = ClassificationRepository()

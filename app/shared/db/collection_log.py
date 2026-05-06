@@ -2,7 +2,7 @@ import pandas as pd
 from psycopg2.extras import Json
 from loguru import logger
 
-from app.shared.database import DatabaseManager
+from app.shared.db.database import DatabaseManager
 
 
 class CollectionLogRepository(DatabaseManager):

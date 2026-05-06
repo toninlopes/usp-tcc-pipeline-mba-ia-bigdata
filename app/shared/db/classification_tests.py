@@ -4,8 +4,8 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from app.shared.db_classification import ClassificationRepository
-from app.shared.conftest import make_repo, mock_get_connection
+from app.shared.db.classification import ClassificationRepository
+from app.shared.test_helpers import make_repo, mock_get_connection
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -228,12 +228,40 @@ class TestQueryClassificationPairs:
         assert result.iloc[0]["human_label"] == "positivo"
         assert result.iloc[0]["model_label"] == "positivo"
 
-    def test_passes_classificator_to_query(self, repo, cursor):
+    def test_default_split_is_teste(self, repo, cursor):
         cursor.fetchall.return_value = []
         mock_get_connection(repo, cursor)
-        repo.query_classification_pairs("SentiLex-PT")
-        args = cursor.execute.call_args[0][1]
-        assert args == ("SentiLex-PT",)
+        repo.query_classification_pairs("FinBERT-PT-BR")
+        params = cursor.execute.call_args[0][1]
+        assert params == ("FinBERT-PT-BR", "teste")
+
+    def test_passes_custom_split(self, repo, cursor):
+        cursor.fetchall.return_value = []
+        mock_get_connection(repo, cursor)
+        repo.query_classification_pairs("SentiLex-PT", split="treino")
+        params = cursor.execute.call_args[0][1]
+        assert params == ("SentiLex-PT", "treino")
+
+    def test_no_split_filter_when_none(self, repo, cursor):
+        cursor.fetchall.return_value = []
+        mock_get_connection(repo, cursor)
+        repo.query_classification_pairs("FinBERT-PT-BR", split=None)
+        params = cursor.execute.call_args[0][1]
+        assert params == ("FinBERT-PT-BR",)
+
+    def test_split_clause_absent_when_none(self, repo, cursor):
+        cursor.fetchall.return_value = []
+        mock_get_connection(repo, cursor)
+        repo.query_classification_pairs("FinBERT-PT-BR", split=None)
+        query = cursor.execute.call_args[0][0]
+        assert "h.split" not in query
+
+    def test_split_clause_present_when_provided(self, repo, cursor):
+        cursor.fetchall.return_value = []
+        mock_get_connection(repo, cursor)
+        repo.query_classification_pairs("FinBERT-PT-BR", split="teste")
+        query = cursor.execute.call_args[0][0]
+        assert "h.split" in query
 
     def test_returns_empty_dataframe_on_no_results(self, repo, cursor):
         cursor.fetchall.return_value = []
