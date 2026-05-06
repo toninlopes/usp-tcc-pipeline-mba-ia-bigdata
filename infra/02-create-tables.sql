@@ -41,6 +41,31 @@ CREATE TABLE IF NOT EXISTS collection_log (
 );
 COMMENT ON TABLE collection_log IS 'Log de controle das coletas realizadas';
 
+CREATE TABLE IF NOT EXISTS dataset_split (
+    id       SERIAL PRIMARY KEY,
+    tweet_id INTEGER NOT NULL REFERENCES tweets(id) ON DELETE CASCADE,
+    split    VARCHAR(10) NOT NULL CHECK (split IN ('train', 'test')),
+    fold     SMALLINT    DEFAULT NULL,
+    CONSTRAINT uq_dataset_split UNIQUE (tweet_id),
+    CONSTRAINT chk_fold CHECK (
+        (split = 'test'  AND fold IS NULL)          OR
+        (split = 'train' AND fold BETWEEN 1 AND 4)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_dataset_split_tweet_id ON dataset_split(tweet_id);
+CREATE INDEX IF NOT EXISTS idx_dataset_split_split    ON dataset_split(split);
+CREATE INDEX IF NOT EXISTS idx_dataset_split_fold     ON dataset_split(fold);
+
+COMMENT ON TABLE dataset_split IS
+    'Particionamento estratificado do dataset de tweets com anotação humana. '
+    'split=test: hold-out fixo para avaliação comparativa entre modelos. '
+    'split=train: conjunto de fine-tuning, subdividido em 4 folds para K-Fold estratificado.';
+
+COMMENT ON COLUMN dataset_split.fold IS
+    'Fold do K-Fold (1–4) para tweets de train. NULL para tweets do hold-out (test).';
+
+
 -- Confirmação
 DO $$
 BEGIN

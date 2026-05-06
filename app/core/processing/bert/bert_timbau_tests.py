@@ -86,7 +86,7 @@ class TestInit:
         fake_model_dir = tmp_path / "bert-timbau-sentiment"
         fake_model_dir.mkdir()
         with patch("app.core.processing.bert.bert_timbau._FINE_TUNED_PATH", fake_model_dir), \
-             patch("app.shared.database.load_dotenv"), \
+             patch("app.shared.db.database.load_dotenv"), \
              patch.object(BERTimbauAnalyzer, "load_model", return_value=MagicMock()):
             instance = BERTimbauAnalyzer()
         assert instance is not None

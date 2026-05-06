@@ -4,9 +4,9 @@ Pipeline de coleta, anotação e análise de sentimento de publicações do X/Tw
 relacionadas ao mercado financeiro brasileiro, desenvolvido como TCC de MBA em
 Inteligência Artificial e Big Data (USP São Carlos).
 
-**Ferramenta central:** [FinBERT-PT-BR](https://huggingface.co/lucas-leme/FinBERT-PT-BR)
-(Santos, Bianchi & Costa, 2023) — modelo BERT especializado para o domínio
-financeiro em português do Brasil.
+**Modelos avaliados:**
+- **BERT:** [FinBERT-PT-BR](https://huggingface.co/lucas-leme/FinBERT-PT-BR) (Santos, Bianchi & Costa, 2023) — modelo BERT especializado para o domínio financeiro em português do Brasil; [BERTimbau](https://huggingface.co/neuralmind/bert-base-portuguese-cased) (Souza et al., 2020) — BERT pré-treinado em português, com fine-tuning sobre o dataset anotado.
+- **Léxico:** [SentiLex-PT](http://l2f.inesc-id.pt/wiki/index.php/SentiLex-PT) (Silva et al., 2012) — léxico de sentimento para o português; [OpLexicon](https://www.inf.pucrs.br/linatural/wordpress/recursos-e-ferramentas/oplexicon/) (Souza & Vieira, 2012) — léxico de opinião para o português brasileiro.
 
 **Produto final:** índice de sentimento extraído das publicações, avaliado quanto
 à sua coerência com eventos macroeconômicos do período.
@@ -18,62 +18,75 @@ financeiro em português do Brasil.
 ```
 collect-twitter-data/
 │
-├── .env                                    # Variáveis de ambiente (credenciais)
-├── docker-compose.yml                      # Infraestrutura Docker (PostgreSQL + pgAdmin)
-├── Makefile                                # Comandos por etapa do pipeline
-├── pytest.ini                              # Configuração de descoberta de testes
-├── requirements.txt                        # Dependências Python
+├── .env                                      # Variáveis de ambiente (credenciais)
+├── docker-compose.yml                        # Infraestrutura Docker (PostgreSQL + pgAdmin)
+├── Makefile                                  # Comandos por etapa do pipeline
+├── pytest.ini                                # Configuração de descoberta de testes
+├── requirements.txt                          # Dependências Python
 │
-├── config/                                 # Termos de busca para a coleta
-│   ├── search_terms_monthly.json           # Períodos mensais (out/2025–fev/2026)
-│   └── search_terms_historical.json        # Períodos históricos (2016–2025)
+├── app/                                      # Todo o código Python
+│   ├── core/                                 # Lógica de negócio (sem UI)
+│   │   ├── extraction/                       # Coleta via API X v2
+│   │   │   ├── base_extractor.py             # ABC: interface para extratores de dados
+│   │   │   ├── twitter_api.py                # TwitterAPIExtractor(BaseExtractor)
+│   │   │   └── collection_log.py             # Registro de coletas no banco
+│   │   ├── processing/                       # Inferência de sentimento
+│   │   │   ├── base_analyzer.py              # ABC: contrato público dos analisadores
+│   │   │   ├── bert/                         # Modelos baseados em BERT
+│   │   │   │   ├── bert_analyzer.py          # BertSentimentAnalyzer (base)
+│   │   │   │   ├── finbert_ptbr.py           # FinBertPTBRAnalyzer
+│   │   │   │   ├── bert_timbau.py            # BERTimbauAnalyzer
+│   │   │   │   └── bert_timbau_fine_tuner.py # Fine-tuning com K-Fold estratificado
+│   │   │   └── lexicon/                      # Modelos baseados em léxico
+│   │   │       ├── lexicon_analyzer.py       # LexiconSentimentAnalyzer (base)
+│   │   │       ├── senti_lex.py              # SentiLexAnalyzer
+│   │   │       └── op_lexicon.py             # OpLexiconAnalyzer
+│   │   └── evaluation/
+│   │       └── metrics.py                    # Acurácia, F1, matriz de confusão
+│   │
+│   ├── dashboard/                            # UI Streamlit (sem lógica de negócio)
+│   │   ├── app.py                            # Entrypoint multi-página
+│   │   └── pages/                            # Uma página por etapa do pipeline
+│   │       ├── annotation.py                 # Anotação manual tweet a tweet
+│   │       ├── eda.py                        # Analytics e exploração dos dados
+│   │       ├── exploration.py                # Exploração dos dados brutos
+│   │       ├── preprocessing.py              # Impacto do pré-processamento
+│   │       ├── dataset_split.py              # Particionamento train/test/fold
+│   │       ├── processing.py                 # Inferência dos modelos
+│   │       └── evaluation.py                 # Métricas de avaliação
+│   │
+│   └── shared/                               # Código transversal
+│       ├── db/                               # Acesso ao banco de dados
+│       │   ├── database.py                   # DatabaseManager (pool de conexões)
+│       │   ├── tweets.py                     # TweetsRepository
+│       │   ├── classification.py             # ClassificationRepository
+│       │   ├── collection_log.py             # CollectionLogRepository
+│       │   └── dataset_split.py              # DatasetSplitRepository
+│       ├── schemas.py                        # Dataclasses de parsing da API X v2
+│       └── text_cleaner.py                   # Funções de limpeza textual
 │
-├── infra/                                  # Scripts de inicialização do banco
-│   ├── 01-init-database.sh                 # Criação de usuário e permissões
-│   └── 02-create-tables.sql               # Schema (tabelas e índices)
+├── config/                                   # Termos de busca para a coleta
+│   ├── search_terms_monthly.json             # Períodos mensais (out/2025–fev/2026)
+│   └── search_terms_historical.json          # Períodos históricos (2016–2025)
 │
-├── pipeline/
-│   ├── 01_extraction/                      # Coleta via API X v2
-│   │   ├── base_extractor.py               # ABC: interface para extratores de dados
-│   │   ├── twitter_api.py                  # TwitterAPIExtractor(BaseExtractor)
-│   │   ├── collection_log.py               # Registro de termos de busca no banco
-│   │   └── __main__.py                     # Ponto de entrada: python -m pipeline.01_extraction
-│   │
-│   ├── 02_annotation/                      # Anotação manual (Streamlit)
-│   │   ├── classifier.py                   # Interface de classificação tweet a tweet
-│   │   └── app.py                          # Launcher multi-página Streamlit
-│   │
-│   ├── 03_eda/                             # Exploração dos dados
-│   │   ├── dashboard.py                    # Distribuição de sentimentos e categorias
-│   │   └── eda.py                          # Análise textual (comprimento, tokens, etc.)
-│   │
-│   ├── 04_preprocessing/                   # Limpeza textual
-│   │   └── preprocessing_dashboard.py      # Impacto cumulativo de cada etapa no FinBERT
-│   │
-│   ├── 05_processing/                      # Inferência do modelo
-│   │   ├── base_model.py                   # ABC: BaseSentimentAnalyzer (fetch→preprocess→predict→save)
-│   │   ├── fin_bert_timbau.py              # FinBERTAnalyzer(BaseSentimentAnalyzer)
-│   │   ├── fin_bert_timbau_tests.py        # Testes unitários de FinBERTAnalyzer
-│   │   └── processing_dashboard.py         # Dashboard de classificação com comparação humano vs. modelo
-│   │
-│   └── 06_evaluation/                      # Avaliação dos resultados
-│       └── metrics.py                      # Acurácia, F1, matriz de confusão
+├── data/                                     # Léxicos de sentimento (download automático)
 │
-├── shared/                                 # Código transversal a todas as etapas
-│   ├── database.py                         # DatabaseManager (conexão e queries)
-│   ├── models.py                           # Dataclasses de parsing da API X
-│   ├── text_cleaner.py                     # Funções de limpeza textual (URLs, emojis, stopwords, lematização)
-│   └── text_cleaner_tests.py               # Testes unitários de text_cleaner
+├── infra/                                    # Scripts de inicialização do banco
+│   ├── 01-init-database.sh                   # Criação de usuário e permissões
+│   └── 02-create-tables.sql                  # Schema (tabelas e índices)
 │
-└── queries/
-    └── analysis.sql                        # Queries SQL utilitárias para análise
+├── models/                                   # Modelos fine-tuned (gerados localmente)
+│   └── bert-timbau-sentiment/                # Produzido por bert_timbau_fine_tuner.py
+│
+└── queries/                                  # SQL utilitário
+    └── queries.sql
 ```
 
 ### Arquitetura do pipeline
 
 ```
 ╔══════════════╦══════════════╦══════════════╗
-║ 01_extraction║ 02_annotation║   03_eda     ║
+║  extraction  ║  annotation  ║     eda      ║
 ║──────────────║──────────────║──────────────║
 ║ API X v2     ║ Classificação║ Exploração   ║
 ║ BaseExtractor║ manual       ║ dados brutos ║
@@ -81,15 +94,15 @@ collect-twitter-data/
 ╚══════╤═══════╩══════════════╩══════╤═══════╝
        │ fluxo de dados              │ informa decisões de limpeza
        ▼                             ▼
-╔══════════════╦══════════════╦══════════════╗
-║04_preprocess ║ 05_processing║06_evaluation ║
-║──────────────║──────────────║──────────────║
-║ Limpeza      ║ FinBERT-     ║ Acurácia     ║
-║ textual      ║ PT-BR        ║ F1 · matriz  ║
-║              ║ inferência   ║ confusão     ║
-╚══════════════╩══════════════╩══════════════╝
+╔══════════════╦══════════════╦══════════════╦══════════════╗
+║ preprocessing║dataset_split ║  processing  ║  evaluation  ║
+║──────────────║──────────────║──────────────║──────────────║
+║ Limpeza      ║ Hold-out +   ║ FinBERT·BERT ║ Acurácia     ║
+║ textual      ║ K-Fold       ║ Léxico       ║ F1 · matriz  ║
+║              ║ estratificado║ inferência   ║ confusão     ║
+╚══════════════╩══════════════╩══════════════╩══════════════╝
 
-─────────── shared/database.py · shared/models.py · infra/ · config/ ───────────
+──────────── app/shared/db/ · app/shared/schemas.py · infra/ · config/ ────────────
 ```
 
 ---
@@ -166,23 +179,28 @@ pip install -r requirements.txt
 
 ## 4. Executando o Pipeline
 
-Todos os comandos são executados a partir da raiz do projeto via `make`:
+Todos os comandos são executados a partir da raiz do projeto via `make`.
+Os comandos de dashboard (`make annotate`, `make eda`, etc.) abrem o mesmo
+aplicativo Streamlit multi-página em `http://localhost:8501` — a navegação
+entre etapas é feita pelo menu lateral.
 
-| Comando | Descrição | Status |
-|---|---|---|
-| `make collect` | Coleta tweets via API X v2 | Implementado |
-| `make annotate` | Anotação manual (Streamlit) | Implementado |
-| `make eda` | Dashboard de exploração dos dados | Implementado |
-| `make preprocess` | Dashboard de impacto do pré-processamento | Implementado |
-| `make process` | Dashboard de classificação com FinBERT-PT-BR | Implementado |
-| `make evaluate` | Métricas de avaliação | A implementar |
+| Comando | Descrição |
+|---|---|
+| `make collect` | Coleta tweets via API X v2 |
+| `make annotate` | Abre o dashboard (página: Anotação) |
+| `make eda` | Abre o dashboard (página: Analytics) |
+| `make preprocess` | Abre o dashboard (página: Pré-processamento) |
+| `make process` | Abre o dashboard (página: Processamento) |
+| `make evaluate` | Executa métricas de avaliação (CLI) |
+| `make db-up` | Sobe PostgreSQL + pgAdmin via Docker |
+| `make db-down` | Para os containers |
 
 ### 4.1. Registrar os Termos de Busca
 
 Antes da primeira coleta, popula `collection_log` com os períodos e usuários:
 
 ```bash
-python -m pipeline.01_extraction.collection_log
+PYTHONPATH=. python -m app.core.extraction.collection_log
 ```
 
 Cada entrada em `config/search_terms_monthly.json` define:
@@ -206,7 +224,7 @@ make collect
 Novas fontes de dados implementam `BaseExtractor`:
 
 ```python
-from pipeline.01_extraction.base_extractor import BaseExtractor
+from app.core.extraction.base_extractor import BaseExtractor
 
 class MyExtractor(BaseExtractor):
     def fetch(self, user_id: str, from_dt: str, to_dt: str) -> list[dict]:
@@ -246,11 +264,40 @@ make preprocess
 # Acesse http://localhost:8501
 ```
 
-Dashboard interativo que aplica as etapas de limpeza de forma **cumulativa** (URL → Emojis → Menções → Hashtags → Espaços → Caixa baixa → Stopwords → Lematização) e executa o FinBERT-PT-BR após cada etapa, permitindo avaliar o impacto de cada passo na classificação final.
+Dashboard interativo que aplica as etapas de limpeza de forma **cumulativa**
+(URL → Emojis → Menções → Hashtags → Espaços → Caixa baixa → Stopwords → Lematização)
+e executa o FinBERT-PT-BR após cada etapa, permitindo avaliar o impacto de cada passo
+na classificação final. As funções de limpeza residem em `app/shared/text_cleaner.py`.
 
-As funções de limpeza residem em `shared/text_cleaner.py` e são compartilhadas entre `04_preprocessing` e `05_processing`.
+### 4.6. Split do Dataset
 
-### 4.6. Processamento (Inferência)
+```bash
+make annotate
+# Navegue até "✂️ Split do Dataset" no menu lateral
+```
+
+Particiona os tweets com anotação humana em:
+- **Hold-out de teste** (~15%) — conjunto fixo usado na avaliação comparativa entre todos os modelos.
+- **Treino com K-Fold estratificado** (restante) — dividido em 4 folds por sentimento, usado no fine-tuning do BERTimbau.
+
+A operação é idempotente: se o split já existir, exibe o resumo atual. Use a opção
+"Re-gerar split" para apagar e recriar. Gerenciado por `DatasetSplitRepository`
+(`app/shared/db/dataset_split.py`).
+
+### 4.7. Fine-tuning do BERTimbau
+
+Pré-requisito para usar o `BERTimbauAnalyzer` no passo de processamento.
+Requer o split atribuído (passo 4.6) e mínimo ~300 tweets anotados.
+
+```bash
+PYTHONPATH=. python -m app.core.processing.bert.bert_timbau_fine_tuner
+```
+
+O modelo treinado é salvo em `models/bert-timbau-sentiment/`. O fine-tuner usa
+`WeightedTrainer` para lidar com desbalanceamento de classes e
+`EarlyStoppingCallback` com paciência de 2 épocas.
+
+### 4.8. Processamento (Inferência)
 
 ```bash
 make process
@@ -258,44 +305,53 @@ make process
 ```
 
 Dashboard de classificação que:
-- Seleciona o algoritmo (atualmente FinBERT-PT-BR; arquitetura extensível via `BaseSentimentAnalyzer`)
+- Seleciona o algoritmo entre os disponíveis: **FinBERT-PT-BR**, **BERTimbau**, **SentiLex-PT**, **OpLexicon**
 - Classifica tweets financeiros com anotação humana existente
 - Compara sentimento do modelo com o sentimento humano tweet a tweet
-- Exibe métricas de concordância e permite salvar as classificações no banco
+- Exibe taxa de concordância e permite salvar as classificações no banco
+
+> **Nota:** o BERTimbau requer fine-tuning prévio (passo 4.7).
 
 #### Extensibilidade
 
 Novos modelos implementam `BaseSentimentAnalyzer`:
 
 ```python
-from pipeline.05_processing.base_model import BaseSentimentAnalyzer
+from app.core.processing.base_analyzer import BaseSentimentAnalyzer
 
 class MyModelAnalyzer(BaseSentimentAnalyzer):
     classificator = "MyModel"
 
-    def load_model(self): ...
     def preprocess(self, text: str) -> str: ...
-    def predict_text(self, text: str, batch_size: int) -> list[dict]: ...
+    def predict(self, text: str) -> tuple[str, float]: ...
     def run(self) -> pd.DataFrame: ...
 ```
+
+### 4.9. Avaliação
+
+```bash
+make evaluate
+```
+
+Executa as métricas de avaliação em modo CLI comparando as classificações de cada
+modelo contra o gold standard humano no conjunto hold-out (`split='test'`):
+acurácia, F1 macro, F1 por classe e matriz de confusão.
 
 ---
 
 ## 5. Testes
 
-Os testes ficam junto ao módulo que testam (co-located), dentro de `pipeline/` ou `shared/`.
+Os testes ficam co-localizados com o módulo que testam (`*_tests.py`), dentro de `app/`.
 
 ```bash
-python -m pytest          # todos os testes
-python -m pytest -v       # com detalhes por teste
+PYTHONPATH=. python -m pytest app/ -v                        # todos os testes
+PYTHONPATH=. python -m pytest app/shared/ -v                 # apenas shared
+PYTHONPATH=. python -m pytest app/core/ -v                   # apenas core
+PYTHONPATH=. python -m pytest app/core/processing/bert/ -v   # apenas modelos BERT
+PYTHONPATH=. python -m pytest app/core/processing/lexicon/ -v # apenas modelos léxicos
 ```
 
-| Arquivo | Módulo testado | Cobertura |
-|---|---|---|
-| `shared/text_cleaner_tests.py` | funções de `text_cleaner` | URLs, emojis, menções, hashtags, espaços, stopwords, lematização |
-| `pipeline/05_processing/fin_bert_timbau_tests.py` | `FinBERTAnalyzer` | atributos de classe, `preprocess`, `normalize_label`, `predict_text`, `run`, `save` |
-
-A descoberta é configurada em `pytest.ini` na raiz: coleta arquivos `test_*.py` e `*_tests.py` dentro de `pipeline/` e `shared/`.
+A descoberta é configurada em `pytest.ini` na raiz: coleta arquivos `test_*.py` e `*_tests.py` dentro de `app/`.
 
 ---
 
@@ -326,7 +382,7 @@ A descoberta é configurada em `pytest.ini` na raiz: coleta arquivos `test_*.py`
 | `why_sentiment` | TEXT | Justificativa do sentimento |
 | `is_finance_news` | INTEGER | Classificação financeiro/não financeiro |
 | `why_is_finance_news` | TEXT | Justificativa da classificação |
-| `classificator` | VARCHAR(100) | `"Humano"` ou `"FinBERT-PT-BR"` |
+| `classificator` | VARCHAR(100) | Origem: `"Humano"`, `"FinBERT-PT-BR"`, `"BERTimbau"`, `"SentiLex-PT"`, `"OpLexicon"` |
 | `score` | REAL | Score de confiança do modelo (se aplicável) |
 
 ### Tabela `collection_log`
@@ -340,6 +396,17 @@ A descoberta é configurada em `pytest.ini` na raiz: coleta arquivos `test_*.py`
 | `end_time` | TIMESTAMP | Fim da coleta |
 | `status` | VARCHAR(20) | `pending`, `completed`, `partially_completed` |
 | `error_message` | TEXT | Mensagem de erro (se houver) |
+
+### Tabela `dataset_split`
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| `id` | SERIAL | Chave primária |
+| `tweet_id` | INTEGER | FK → `tweets.id` |
+| `split` | VARCHAR(10) | `'train'` ou `'test'` |
+| `fold` | SMALLINT | Fold do K-Fold (1–4) para `train`; `NULL` para hold-out (`test`) |
+
+Restrições: `tweet_id` único; fold `NULL` quando `split='test'`, entre 1 e 4 quando `split='train'`.
 
 ---
 

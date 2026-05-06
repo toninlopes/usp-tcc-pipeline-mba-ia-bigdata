@@ -3,7 +3,7 @@ from psycopg2.extras import Json
 from loguru import logger
 from typing import Optional
 
-from app.shared.database import DatabaseManager
+from app.shared.db.database import DatabaseManager
 
 
 class ClassificationRepository(DatabaseManager):
@@ -115,7 +115,11 @@ class ClassificationRepository(DatabaseManager):
             logger.error(f"Falha ao consultar classificações do tweet ID {tweet_id}: {e}")
             return pd.DataFrame()
         
-    def query_classification_pairs(self, model_classificator: str) -> pd.DataFrame:
+    def query_classification_pairs(
+        self,
+        model_classificator: str,
+        split: Optional[str] = "teste",
+    ) -> pd.DataFrame:
         """Retorna pares de classificação (Humano, Modelo) para o mesmo tweet.
 
         Usado pela avaliação para comparar o gold standard humano com
@@ -124,11 +128,15 @@ class ClassificationRepository(DatabaseManager):
         Args:
             model_classificator: Nome do classificador a comparar com 'Humano'.
                                 Ex: 'FinBERT-PT-BR', 'SentiLex-PT', 'OpLexicon'.
+            split: Partição do dataset a usar — 'treino', 'validacao' ou 'teste'.
+                   Padrão 'teste' (hold-out). Passe None para usar todos os tweets
+                   anotados sem filtro de split (útil no dashboard).
 
         Returns:
             DataFrame com colunas tweet_id, human_label, model_label.
         """
-        query = """
+        split_clause = "AND h.split = %s" if split else ""
+        query = f"""
         SELECT
             h.tweet_id,
             h.sentiment AS human_label,
@@ -136,16 +144,19 @@ class ClassificationRepository(DatabaseManager):
         FROM tweets_classification h
         JOIN tweets_classification m ON h.tweet_id = m.tweet_id
         WHERE h.classificator = 'Humano'
-        AND m.classificator = %s
+          AND m.classificator = %s
+          {split_clause}
         ORDER BY h.tweet_id;
         """
+        params = (model_classificator, split) if split else (model_classificator,)
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
-                    cur.execute(query, (model_classificator,))
+                    cur.execute(query, params)
                     results = cur.fetchall()
                     logger.info(
-                        f"Pares Humano vs {model_classificator}: {len(results)} encontrados."
+                        f"Pares Humano vs {model_classificator}"
+                        f"{f' (split={split})' if split else ''}: {len(results)} encontrados."
                     )
                     return pd.DataFrame(
                         results,

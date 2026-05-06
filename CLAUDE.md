@@ -10,7 +10,10 @@ de design do projeto. Leia antes de qualquer modificação.
 Pipeline de coleta, anotação e análise de sentimento de publicações do
 X/Twitter relacionadas ao mercado financeiro brasileiro.
 
-**Ferramenta central:** FinBERT-PT-BR (`lucas-leme/FinBERT-PT-BR`)
+**Modelos avaliados:**
+- **BERT:** FinBERT-PT-BR (`lucas-leme/FinBERT-PT-BR`) — especializado para o domínio financeiro em PT-BR; BERTimbau (`neuralmind/bert-base-portuguese-cased`) — pré-treinado em português, com fine-tuning sobre o dataset anotado.
+- **Léxico:** SentiLex-PT02 — léxico de sentimento para o português; OpLexicon v3.0 — léxico de opinião para o português brasileiro.
+
 **Produto final:** índice de sentimento avaliado contra gold standard humano
 
 ---
@@ -38,11 +41,20 @@ project/
 │   ├── dashboard/                ← UI Streamlit (sem lógica de negócio)
 │   │   ├── app.py                ← entrypoint multi-página
 │   │   └── pages/                ← uma página por etapa do pipeline
+│   │       ├── annotation.py     ← anotação manual tweet a tweet
+│   │       ├── eda.py            ← analytics e exploração dos dados
+│   │       ├── exploration.py    ← exploração dos dados brutos
+│   │       ├── preprocessing.py  ← impacto do pré-processamento
+│   │       ├── dataset_split.py  ← particionamento train/test/fold
+│   │       ├── processing.py     ← inferência dos modelos
+│   │       └── evaluation.py     ← métricas de avaliação
 │   └── shared/                   ← código transversal
-│       ├── database.py           ← pool de conexões PostgreSQL
-│       ├── db_tweets.py          ← queries da tabela tweets
-│       ├── db_classification.py  ← queries da tabela tweets_classification
-│       ├── db_collection_log.py  ← queries da tabela collection_log
+│       ├── db/                   ← acesso ao banco de dados
+│       │   ├── database.py       ← pool de conexões PostgreSQL (DatabaseManager)
+│       │   ├── tweets.py         ← queries da tabela tweets
+│       │   ├── classification.py ← queries da tabela tweets_classification
+│       │   ├── collection_log.py ← queries da tabela collection_log
+│       │   └── dataset_split.py  ← queries da tabela dataset_split
 │       ├── schemas.py            ← dataclasses de parsing da API X v2
 │       └── text_cleaner.py       ← funções de limpeza textual
 │
@@ -52,8 +64,6 @@ project/
 ├── models/                       ← modelos fine-tuned (gerados localmente)
 │   └── bert-timbau-sentiment/    ← produzido por bert_timbau_fine_tuner.py
 ├── queries/                      ← SQL utilitário
-├── tests/
-│   └── fixtures/                 ← JSONs de exemplo para testes manuais
 ├── .env
 ├── docker-compose.yml
 ├── Makefile
@@ -72,7 +82,7 @@ a partir de `app.*`:
 
 ```python
 # correto
-from app.shared.db_tweets import TweetsRepository
+from app.shared.db.tweets import TweetsRepository
 from app.core.processing.bert.finbert_ptbr import FinBertPTBRAnalyzer
 from app.core.processing.lexicon.senti_lex import SentiLexAnalyzer
 
@@ -95,11 +105,12 @@ de `typing` em vez das formas built-in do 3.10+.
 Nunca instanciar `DatabaseManager` diretamente nos módulos de negócio.
 Usar os repositórios específicos:
 
-| Tabela                  | Repositório                |
-|-------------------------|----------------------------|
-| `tweets`                | `TweetsRepository`         |
-| `tweets_classification` | `ClassificationRepository` |
-| `collection_log`        | `CollectionLogRepository`  |
+| Tabela                  | Repositório                | Módulo                          |
+|-------------------------|----------------------------|---------------------------------|
+| `tweets`                | `TweetsRepository`         | `app.shared.db.tweets`          |
+| `tweets_classification` | `ClassificationRepository` | `app.shared.db.classification`  |
+| `collection_log`        | `CollectionLogRepository`  | `app.shared.db.collection_log`  |
+| `dataset_split`         | `DatasetSplitRepository`   | `app.shared.db.dataset_split`   |
 
 ---
 
@@ -198,6 +209,19 @@ A tabela `tweets_classification` diferencia a origem de cada anotação:
 | `status`           | VARCHAR(20) | `pending` / `completed` / `partially_completed` |
 | `error_message`    | TEXT        | Mensagem de erro (se houver)                    |
 
+### Tabela `dataset_split`
+
+| Coluna     | Tipo        | Descrição                                                      |
+|------------|-------------|----------------------------------------------------------------|
+| `id`       | SERIAL      | Chave primária                                                 |
+| `tweet_id` | INTEGER     | FK → `tweets.id`                                               |
+| `split`    | VARCHAR(10) | `'train'` ou `'test'`                                          |
+| `fold`     | SMALLINT    | Fold do K-Fold (1–4) para `train`; `NULL` para `test`          |
+
+Restrições: `tweet_id` único; fold obrigatoriamente `NULL` quando `split='test'` e entre
+1 e 4 quando `split='train'`. Gerenciada por `DatasetSplitRepository`
+(`app/shared/db/dataset_split.py`).
+
 ---
 
 ## 7. Comandos
@@ -243,8 +267,9 @@ python -m app.core.processing.bert.bert_timbau_fine_tuner
 # models/bert-timbau-sentiment/
 ```
 
-O fine-tuner usa split estratificado 70/15/15, `WeightedTrainer` para lidar
-com desbalanceamento de classes e `EarlyStoppingCallback` com paciência de 2 épocas.
+O fine-tuner usa os folds do `DatasetSplitRepository` (K-Fold estratificado),
+`WeightedTrainer` para lidar com desbalanceamento de classes e
+`EarlyStoppingCallback` com paciência de 2 épocas.
 
 ---
 

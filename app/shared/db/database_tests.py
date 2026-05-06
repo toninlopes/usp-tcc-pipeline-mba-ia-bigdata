@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch, call
 import pytest
 
-from app.shared.database import DatabaseManager
+from app.shared.db.database import DatabaseManager
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -9,7 +9,7 @@ from app.shared.database import DatabaseManager
 @pytest.fixture
 def manager():
     """DatabaseManager com variáveis de ambiente padrão."""
-    with patch("app.shared.database.load_dotenv"):
+    with patch("app.shared.db.database.load_dotenv"):
         return DatabaseManager()
 
 
@@ -42,7 +42,7 @@ class TestConnectionParams:
             "POSTGRES_HOST": "db-server",
             "POSTGRES_PORT": "5433",
         }
-        with patch("app.shared.database.load_dotenv"), \
+        with patch("app.shared.db.database.load_dotenv"), \
              patch.dict("os.environ", env, clear=True):
             m = DatabaseManager()
             params = m._connection_params()
@@ -55,7 +55,7 @@ class TestConnectionParams:
 
     def test_falls_back_to_postgres_user_when_twitter_user_absent(self):
         env = {"POSTGRES_USER": "fallback_user"}
-        with patch("app.shared.database.load_dotenv"), \
+        with patch("app.shared.db.database.load_dotenv"), \
              patch.dict("os.environ", env, clear=True):
             m = DatabaseManager()
 
@@ -66,18 +66,18 @@ class TestConnectionParams:
 
 class TestInitializePool:
     def test_creates_pool_on_first_call(self, manager):
-        with patch("app.shared.database.SimpleConnectionPool") as MockPool:
+        with patch("app.shared.db.database.SimpleConnectionPool") as MockPool:
             manager.initialize_pool()
             MockPool.assert_called_once()
 
     def test_does_not_recreate_pool_on_second_call(self, manager, mock_pool):
-        with patch("app.shared.database.SimpleConnectionPool") as MockPool:
+        with patch("app.shared.db.database.SimpleConnectionPool") as MockPool:
             manager.initialize_pool()
             manager.initialize_pool()
             MockPool.assert_called_once()
 
     def test_passes_minconn_maxconn(self, manager):
-        with patch("app.shared.database.SimpleConnectionPool") as MockPool:
+        with patch("app.shared.db.database.SimpleConnectionPool") as MockPool:
             manager.initialize_pool(minconn=2, maxconn=5)
             args = MockPool.call_args
             assert args[0][0] == 2
@@ -96,12 +96,12 @@ class TestCheckConnection:
         mock_cursor.__exit__ = MagicMock(return_value=False)
         mock_conn.cursor.return_value = mock_cursor
 
-        with patch("app.shared.database.psycopg2.connect", return_value=mock_conn):
+        with patch("app.shared.db.database.psycopg2.connect", return_value=mock_conn):
             assert manager.check_connection() == 0
 
     def test_returns_one_on_failure(self, manager):
         with patch(
-            "app.shared.database.psycopg2.connect",
+            "app.shared.db.database.psycopg2.connect",
             side_effect=Exception("connection refused"),
         ):
             assert manager.check_connection() == 1

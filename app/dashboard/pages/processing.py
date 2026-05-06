@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 
-from app.shared.db_tweets import TweetsRepository
-from app.shared.db_classification import ClassificationRepository
+from app.shared.db.tweets import TweetsRepository
+from app.shared.db.classification import ClassificationRepository
 from app.core.processing.bert.finbert_ptbr import FinBertPTBRAnalyzer
 from app.core.processing.lexicon.senti_lex import SentiLexAnalyzer
 from app.core.processing.lexicon.op_lexicon import OpLexiconAnalyzer

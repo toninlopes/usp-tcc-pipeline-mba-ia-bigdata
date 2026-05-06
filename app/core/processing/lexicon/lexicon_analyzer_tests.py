@@ -33,7 +33,7 @@ class ConcreteLexiconAnalyzer(LexiconSentimentAnalyzer):
 
 @pytest.fixture
 def analyzer():
-    with patch("app.shared.database.load_dotenv"):
+    with patch("app.shared.db.database.load_dotenv"):
         instance = ConcreteLexiconAnalyzer.__new__(ConcreteLexiconAnalyzer)
         instance._tweet_repo = MagicMock()
         instance._classification_repo = MagicMock()

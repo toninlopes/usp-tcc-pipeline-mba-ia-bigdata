@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytz
 
-from app.shared.db_collection_log import CollectionLogRepository
-from app.shared.db_tweets import TweetsRepository
+from app.shared.db.collection_log import CollectionLogRepository
+from app.shared.db.tweets import TweetsRepository
 from app.shared.schemas import Tweets
 from app.core.extraction.collection_log import SearchTerm
 from app.core.extraction.twitter_api import TwitterAPIExtractor

@@ -261,3 +261,12 @@ SELECT
     ) AS has_human_classification
 FROM tweets t
 ORDER BY t.created_at DESC;
+
+DELETE FROM dataset_split;
+
+SELECT id,
+       tweet_id,
+       split,
+       fold
+FROM public.dataset_split
+LIMIT 1000;

@@ -25,7 +25,7 @@ class ConcreteAnalyzer(BaseSentimentAnalyzer):
 
 @pytest.fixture
 def analyzer():
-    with patch("app.shared.database.load_dotenv"):
+    with patch("app.shared.db.database.load_dotenv"):
         return ConcreteAnalyzer()
 
 

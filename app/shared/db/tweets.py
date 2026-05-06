@@ -3,7 +3,9 @@ from typing import Optional
 from psycopg2.extras import Json
 from loguru import logger
 
-from app.shared.database import DatabaseManager
+from app.shared.db.database import DatabaseManager
+
+_VALID_SENTIMENTS = ("positivo", "negativo", "neutro")
 
 class TweetsRepository(DatabaseManager):
     """Queries e operações sobre a tabela `tweets`."""

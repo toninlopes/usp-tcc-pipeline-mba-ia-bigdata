@@ -9,7 +9,7 @@ from sklearn.metrics import (
     f1_score,
 )
 
-from app.shared.db_classification import ClassificationRepository
+from app.shared.db.classification import ClassificationRepository
 
 LABELS = ["positivo", "neutro", "negativo"]
 

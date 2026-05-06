@@ -18,7 +18,7 @@ SAMPLE_LEXICON: Dict[str, int] = {
 
 @pytest.fixture
 def analyzer():
-    with patch("app.shared.database.load_dotenv"):
+    with patch("app.shared.db.database.load_dotenv"):
         instance = OpLexiconAnalyzer.__new__(OpLexiconAnalyzer)
         instance._tweet_repo = MagicMock()
         instance._classification_repo = MagicMock()
@@ -33,7 +33,7 @@ class TestLoadModel:
     def test_parses_positive_entry(self, tmp_path):
         lex_file = tmp_path / "lexico_v3.0.txt"
         lex_file.write_text("bom,Adj,1\n", encoding="utf-8")
-        with patch("app.shared.database.load_dotenv"):
+        with patch("app.shared.db.database.load_dotenv"):
             instance = OpLexiconAnalyzer.__new__(OpLexiconAnalyzer)
             instance._tweet_repo = MagicMock()
             instance._classification_repo = MagicMock()
@@ -45,7 +45,7 @@ class TestLoadModel:
     def test_parses_negative_entry(self, tmp_path):
         lex_file = tmp_path / "lexico_v3.0.txt"
         lex_file.write_text("ruim,Adj,-1\n", encoding="utf-8")
-        with patch("app.shared.database.load_dotenv"):
+        with patch("app.shared.db.database.load_dotenv"):
             instance = OpLexiconAnalyzer.__new__(OpLexiconAnalyzer)
             instance._tweet_repo = MagicMock()
             instance._classification_repo = MagicMock()
@@ -57,7 +57,7 @@ class TestLoadModel:
     def test_skips_lines_with_fewer_than_3_columns(self, tmp_path):
         lex_file = tmp_path / "lexico_v3.0.txt"
         lex_file.write_text("bom,Adj\n", encoding="utf-8")
-        with patch("app.shared.database.load_dotenv"):
+        with patch("app.shared.db.database.load_dotenv"):
             instance = OpLexiconAnalyzer.__new__(OpLexiconAnalyzer)
             instance._tweet_repo = MagicMock()
             instance._classification_repo = MagicMock()
@@ -68,7 +68,7 @@ class TestLoadModel:
     def test_skips_non_integer_polarity(self, tmp_path):
         lex_file = tmp_path / "lexico_v3.0.txt"
         lex_file.write_text("bom,Adj,forte\n", encoding="utf-8")
-        with patch("app.shared.database.load_dotenv"):
+        with patch("app.shared.db.database.load_dotenv"):
             instance = OpLexiconAnalyzer.__new__(OpLexiconAnalyzer)
             instance._tweet_repo = MagicMock()
             instance._classification_repo = MagicMock()
@@ -78,7 +78,7 @@ class TestLoadModel:
 
     def test_raises_if_not_found_after_download(self, tmp_path):
         missing = tmp_path / "missing.txt"
-        with patch("app.shared.database.load_dotenv"):
+        with patch("app.shared.db.database.load_dotenv"):
             instance = OpLexiconAnalyzer.__new__(OpLexiconAnalyzer)
             instance._tweet_repo = MagicMock()
             instance._classification_repo = MagicMock()
