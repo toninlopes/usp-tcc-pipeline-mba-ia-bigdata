@@ -2,11 +2,15 @@
 Fine-tuning do BERTimbau (neuralmind/bert-base-portuguese-cased) para
 classificação de sentimento de tweets financeiros em português brasileiro.
 
-Produz o modelo ajustado em models/bert-timbau-sentiment/, usado pelo
+Usa o particionamento estratificado persistido em `dataset_split` pelo
+DatasetSplitRepository: hold-out fixo para avaliação final e K-Fold para
+treinamento/validação cruzada.
+
+Produz o modelo do melhor fold em models/bert-timbau-sentiment/, usado pelo
 BERTimbauAnalyzer via processing dashboard.
 
 Uso:
-    python -m app.core.processing.bert_timbau_fine_tuner
+    PYTHONPATH=. python -m app.core.processing.bert.bert_timbau_fine_tuner
 """
 
 from __future__ import annotations
@@ -24,7 +28,6 @@ from sklearn.metrics import (
     confusion_matrix,
     f1_score,
 )
-from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import Dataset
 from transformers.models.auto.modeling_auto import AutoModelForSequenceClassification
@@ -33,7 +36,7 @@ from transformers.trainer import Trainer
 from transformers.trainer_callback import EarlyStoppingCallback
 from transformers.training_args import TrainingArguments
 
-from app.shared.db.tweets import TweetsRepository
+from app.shared.db.dataset_split import DatasetSplitRepository
 from app.shared.text_cleaner import (
     remove_hashtags,
     replace_emojis_with_codes,
@@ -46,12 +49,13 @@ from app.shared.text_cleaner import (
 
 BASE_MODEL = "neuralmind/bert-base-portuguese-cased"
 
-# app/core/processing/ → app/core/ → app/ → project root
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+# app/core/processing/bert/ → app/core/processing/ → app/core/ → app/ → root
+_PROJECT_ROOT = Path(__file__).resolve().parents[4]
 OUTPUT_DIR = _PROJECT_ROOT / "models" / "bert-timbau-sentiment"
 
 MAX_LENGTH = 128
 RANDOM_STATE = 42
+N_FOLDS = 4  # must match DatasetSplitRepository._N_SPLITS
 
 LABEL_TO_ID: Dict[str, int] = {"negativo": 0, "neutro": 1, "positivo": 2}
 ID_TO_LABEL: Dict[int, str] = {v: k for k, v in LABEL_TO_ID.items()}
@@ -71,6 +75,23 @@ def preprocess(text: str) -> str:
     text = remove_hashtags(text)
     text = space_normalization(text)
     return text
+
+
+def prepare_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Aplica pré-processamento e mapeamento de labels a um DataFrame do DatasetSplitRepository.
+
+    Args:
+        df: DataFrame com colunas tweet_id, note_tweet, sentiment, fold.
+
+    Returns:
+        DataFrame enriquecido com note_tweet_clean e label_id, sem linhas inválidas.
+    """
+    df = df.copy()
+    df["note_tweet_clean"] = df["note_tweet"].astype(str).apply(preprocess)
+    df = df[df["note_tweet_clean"].str.strip() != ""]
+    df = df[df["sentiment"].isin(LABEL_TO_ID)]
+    df["label_id"] = df["sentiment"].map(LABEL_TO_ID)
+    return df.reset_index(drop=True)
 
 
 # ── Dataset ───────────────────────────────────────────────────────────────────
@@ -128,75 +149,27 @@ def compute_metrics(eval_pred) -> Dict[str, float]:
     }
 
 
-# ── Carga e split dos dados ───────────────────────────────────────────────────
+# ── Treino por fold ───────────────────────────────────────────────────────────
 
-def load_labeled_data() -> pd.DataFrame:
-    """Carrega tweets financeiros rotulados pelo anotador humano."""
-    repo = TweetsRepository()
-    df = repo.query_all_tweets_with_human_classification()
+def train_fold(
+    fold: int,
+    train_df: pd.DataFrame,
+    val_df: pd.DataFrame,
+    tokenizer: Any,
+    training_args_override: Optional[Dict] = None,
+    extra_callbacks: Optional[List] = None,
+) -> Tuple[float, Path]:
+    """Treina o modelo para um único fold e retorna (val_f1_macro, model_dir).
 
-    df = df[df["sentiment"].isin(LABEL_TO_ID)].copy()
-    df["note_tweet_clean"] = df["note_tweet"].astype(str).apply(preprocess)
-    df = df[df["note_tweet_clean"].str.strip() != ""].reset_index(drop=True)
-    df["label_id"] = df["sentiment"].map(LABEL_TO_ID)
-    return df
+    Args:
+        fold: Número do fold (1..N_FOLDS).
+        train_df: Dados de treino preparados (com note_tweet_clean e label_id).
+        val_df: Dados de validação preparados.
+        tokenizer: Tokenizer pré-carregado.
 
-
-def stratified_split(
-    df: pd.DataFrame,
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Split 70/15/15 estratificado por classe de sentimento."""
-    train_df, temp_df = train_test_split(
-        df,
-        test_size=0.30,
-        random_state=RANDOM_STATE,
-        stratify=df["label_id"],
-    )
-    val_df, test_df = train_test_split(
-        temp_df,
-        test_size=0.50,
-        random_state=RANDOM_STATE,
-        stratify=temp_df["label_id"],
-    )
-    return (
-        train_df.reset_index(drop=True),
-        val_df.reset_index(drop=True),
-        test_df.reset_index(drop=True),
-    )
-
-
-# ── Rotina principal ──────────────────────────────────────────────────────────
-
-def main() -> None:
-    print("Carregando dados rotulados...")
-    df = load_labeled_data()
-    print(f"  Total: {len(df)} tweets")
-    print("  Distribuição de classes:")
-    print(df["sentiment"].value_counts().to_string())
-
-    if len(df) < 300:
-        raise RuntimeError(
-            f"Apenas {len(df)} tweets rotulados — insuficiente para fine-tuning "
-            f"estável. Rotule mais tweets via `make annotate` (mínimo ~300)."
-        )
-
-    train_df, val_df, test_df = stratified_split(df)
-    print(f"\nSplits: treino={len(train_df)} | val={len(val_df)} | teste={len(test_df)}")
-
-    weights = compute_class_weight(
-        class_weight="balanced",
-        classes=np.array(list(LABEL_TO_ID.values())),
-        y=train_df["label_id"].to_numpy(dtype=np.int64),
-    )
-    class_weights = torch.tensor(weights, dtype=torch.float)
-    print(
-        "\nPesos por classe:",
-        {k: round(float(w), 3) for k, w in zip(LABEL_TO_ID.keys(), weights)},
-    )
-
-    print(f"\nCarregando tokenizer {BASE_MODEL}...")
-    tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
-
+    Returns:
+        Tupla (val_f1_macro, caminho do modelo salvo).
+    """
     def encode(texts: List[str]) -> Dict:
         return tokenizer(
             texts,
@@ -205,11 +178,22 @@ def main() -> None:
             max_length=MAX_LENGTH,
         )
 
-    train_ds = TweetDataset(encode(train_df["note_tweet_clean"].tolist()), train_df["label_id"].tolist())
-    val_ds = TweetDataset(encode(val_df["note_tweet_clean"].tolist()), val_df["label_id"].tolist())
-    test_ds = TweetDataset(encode(test_df["note_tweet_clean"].tolist()), test_df["label_id"].tolist())
+    train_ds = TweetDataset(
+        encode(train_df["note_tweet_clean"].tolist()),
+        train_df["label_id"].tolist(),
+    )
+    val_ds = TweetDataset(
+        encode(val_df["note_tweet_clean"].tolist()),
+        val_df["label_id"].tolist(),
+    )
 
-    print(f"\nCarregando modelo base {BASE_MODEL}...")
+    weights = compute_class_weight(
+        class_weight="balanced",
+        classes=np.array(list(LABEL_TO_ID.values())),
+        y=train_df["label_id"].to_numpy(dtype=np.int64),
+    )
+    class_weights = torch.tensor(weights, dtype=torch.float)
+
     model = AutoModelForSequenceClassification.from_pretrained(
         BASE_MODEL,
         num_labels=len(LABEL_TO_ID),
@@ -217,14 +201,16 @@ def main() -> None:
         label2id=LABEL_TO_ID,
     )
 
+    overrides = training_args_override or {}
+    fold_dir = OUTPUT_DIR / "checkpoints" / f"fold_{fold}"
     args = TrainingArguments(
-        output_dir=str(OUTPUT_DIR / "checkpoints"),
-        num_train_epochs=12,
-        per_device_train_batch_size=16,
-        per_device_eval_batch_size=32,
-        learning_rate=2e-5,
-        weight_decay=0.01,
-        warmup_ratio=0.1,
+        output_dir=str(fold_dir),
+        num_train_epochs=overrides.get("num_train_epochs", 12),
+        per_device_train_batch_size=overrides.get("per_device_train_batch_size", 16),
+        per_device_eval_batch_size=overrides.get("per_device_eval_batch_size", 32),
+        learning_rate=overrides.get("learning_rate", 2e-5),
+        weight_decay=overrides.get("weight_decay", 0.01),
+        warmup_ratio=overrides.get("warmup_ratio", 0.1),
         eval_strategy="epoch",
         save_strategy="epoch",
         logging_strategy="epoch",
@@ -236,6 +222,11 @@ def main() -> None:
         report_to="none",
     )
 
+    patience = overrides.get("early_stopping_patience", 2)
+    callbacks = [EarlyStoppingCallback(early_stopping_patience=patience)]
+    if extra_callbacks:
+        callbacks.extend(extra_callbacks)
+
     trainer = WeightedTrainer(
         class_weights=class_weights,
         model=model,
@@ -244,14 +235,118 @@ def main() -> None:
         eval_dataset=val_ds,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
+        callbacks=callbacks,
     )
 
-    print("\nIniciando fine-tuning...")
     trainer.train()
 
+    val_metrics = trainer.evaluate()
+    val_f1 = float(val_metrics.get("eval_f1_macro", 0.0))
+
+    model_dir = fold_dir / "best"
+    trainer.save_model(str(model_dir))
+    tokenizer.save_pretrained(str(model_dir))
+
+    del model, trainer
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    return val_f1, model_dir
+
+
+# ── Rotina principal ──────────────────────────────────────────────────────────
+
+def main() -> None:
+    split_repo = DatasetSplitRepository()
+
+    if not split_repo.is_assigned():
+        raise RuntimeError(
+            "Nenhum split encontrado no banco. Execute a página "
+            "'✂️ Split do Dataset' no dashboard antes de iniciar o fine-tuning."
+        )
+
+    print(f"Carregando tokenizer {BASE_MODEL}...")
+    tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
+
+    print("\nCarregando hold-out de teste...")
+    test_df = prepare_df(split_repo.query_by_split("test"))
+    print(f"  Hold-out: {len(test_df)} tweets")
+
+    if len(test_df) == 0:
+        raise RuntimeError("Hold-out vazio. Re-gere o split via dashboard.")
+
+    # ── K-Fold training ───────────────────────────────────────────────────────
+
+    fold_results: List[Dict] = []
+
+    for fold in range(1, N_FOLDS + 1):
+        print(f"\n{'=' * 52}")
+        print(f"  Fold {fold} / {N_FOLDS}")
+        print(f"{'=' * 52}")
+
+        train_df = prepare_df(split_repo.query_train_excluding_fold(fold))
+        val_df = prepare_df(split_repo.query_by_fold(fold))
+
+        if len(train_df) < 50 or len(val_df) < 10:
+            raise RuntimeError(
+                f"Fold {fold} com dados insuficientes: "
+                f"treino={len(train_df)}, val={len(val_df)}. "
+                f"Rotule mais tweets e re-gere o split."
+            )
+
+        print(f"  Treino: {len(train_df)} tweets")
+        print(f"  Validação: {len(val_df)} tweets")
+        print("  Distribuição (treino):")
+        print(train_df["sentiment"].value_counts().to_string())
+
+        val_f1, model_dir = train_fold(fold, train_df, val_df, tokenizer)
+
+        fold_results.append({"fold": fold, "val_f1_macro": val_f1, "model_dir": model_dir})
+        print(f"\n  Fold {fold} — F1 macro (val): {val_f1:.4f}")
+
+    # ── Seleção do melhor fold ────────────────────────────────────────────────
+
+    print(f"\n{'=' * 52}")
+    print("  Resumo K-Fold")
+    print(f"{'=' * 52}")
+    for r in fold_results:
+        marker = " ◀ melhor" if r == max(fold_results, key=lambda x: x["val_f1_macro"]) else ""
+        print(f"  Fold {r['fold']}: F1 macro val = {r['val_f1_macro']:.4f}{marker}")
+
+    best = max(fold_results, key=lambda x: x["val_f1_macro"])
+    print(f"\nMelhor fold: {best['fold']} (F1 macro val: {best['val_f1_macro']:.4f})")
+
+    # ── Avaliação no hold-out ─────────────────────────────────────────────────
+
     print("\nAvaliando no conjunto de teste (hold-out)...")
-    test_preds = trainer.predict(test_ds)
+
+    best_model = AutoModelForSequenceClassification.from_pretrained(str(best["model_dir"]))
+
+    def encode(texts: List[str]) -> Dict:
+        return tokenizer(
+            texts,
+            truncation=True,
+            padding="max_length",
+            max_length=MAX_LENGTH,
+        )
+
+    test_ds = TweetDataset(
+        encode(test_df["note_tweet_clean"].tolist()),
+        test_df["label_id"].tolist(),
+    )
+
+    eval_args = TrainingArguments(
+        output_dir=str(OUTPUT_DIR / "_eval_tmp"),
+        report_to="none",
+    )
+    eval_trainer = Trainer(
+        model=best_model,
+        args=eval_args,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics,
+    )
+
+    test_preds = eval_trainer.predict(test_ds)
     if test_preds.label_ids is None:
         raise RuntimeError("Predições sem labels no conjunto de teste.")
 
@@ -271,31 +366,34 @@ def main() -> None:
         columns=[f"pred_{n}" for n in label_names],
     )
 
-    print("\nClassification Report:")
+    print("\nClassification Report (hold-out):")
     print(report)
     print("\nConfusion Matrix:")
     print(cm_df.to_string())
+
+    # ── Salvar modelo e artefatos ─────────────────────────────────────────────
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     eval_dir = OUTPUT_DIR / "eval"
     eval_dir.mkdir(exist_ok=True)
 
-    trainer.save_model(str(OUTPUT_DIR))
+    eval_trainer.save_model(str(OUTPUT_DIR))
     tokenizer.save_pretrained(str(OUTPUT_DIR))
 
     with open(OUTPUT_DIR / "id2label.json", "w", encoding="utf-8") as f:
         json.dump(ID_TO_LABEL, f, ensure_ascii=False, indent=2)
 
     with open(eval_dir / "classification_report.txt", "w", encoding="utf-8") as f:
+        f.write(f"Melhor fold: {best['fold']} (F1 macro val: {best['val_f1_macro']:.4f})\n\n")
         f.write(report)
+
     cm_df.to_csv(eval_dir / "confusion_matrix.csv")
 
-    train_df[["id", "tweet_id", "sentiment"]].to_csv(eval_dir / "train_split.csv", index=False)
-    val_df[["id", "tweet_id", "sentiment"]].to_csv(eval_dir / "val_split.csv", index=False)
-    test_df[["id", "tweet_id", "sentiment"]].to_csv(eval_dir / "test_split.csv", index=False)
+    kfold_summary = pd.DataFrame(fold_results).drop(columns=["model_dir"])
+    kfold_summary.to_csv(eval_dir / "kfold_summary.csv", index=False)
 
     print(f"\nModelo salvo em: {OUTPUT_DIR}")
-    print(f"Relatórios e splits salvos em: {eval_dir}")
+    print(f"Relatórios salvos em: {eval_dir}")
 
 
 if __name__ == "__main__":

@@ -3,16 +3,7 @@
 collect:
 	PYTHONPATH=. python -m app.core.extraction
 
-annotate:
-	PYTHONPATH=. streamlit run app/dashboard/app.py
-
-eda:
-	PYTHONPATH=. streamlit run app/dashboard/app.py
-
-preprocess:
-	PYTHONPATH=. streamlit run app/dashboard/app.py
-
-process:
+dashboard:
 	PYTHONPATH=. streamlit run app/dashboard/app.py
 
 evaluate:
