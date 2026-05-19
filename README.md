@@ -36,7 +36,8 @@ collect-twitter-data/
 │   │   │   │   ├── bert_analyzer.py          # BertSentimentAnalyzer (base)
 │   │   │   │   ├── finbert_ptbr.py           # FinBertPTBRAnalyzer
 │   │   │   │   ├── bert_timbau.py            # BERTimbauAnalyzer
-│   │   │   │   └── bert_timbau_fine_tuner.py # Fine-tuning com K-Fold estratificado
+│   │   │   │   ├── bert_timbau_fine_tuner.py # Fine-tuning com K-Fold estratificado
+│   │   │   │   └── training_state.py         # Estado compartilhado entre thread de treino e dashboard
 │   │   │   └── lexicon/                      # Modelos baseados em léxico
 │   │   │       ├── lexicon_analyzer.py       # LexiconSentimentAnalyzer (base)
 │   │   │       ├── senti_lex.py              # SentiLexAnalyzer
@@ -52,6 +53,7 @@ collect-twitter-data/
 │   │       ├── exploration.py                # Exploração dos dados brutos
 │   │       ├── preprocessing.py              # Impacto do pré-processamento
 │   │       ├── dataset_split.py              # Particionamento train/test/fold
+│   │       ├── fine_tuning.py                # Fine-tuning do BERTimbau (dashboard)
 │   │       ├── processing.py                 # Inferência dos modelos
 │   │       └── evaluation.py                 # Métricas de avaliação
 │   │
@@ -180,17 +182,13 @@ pip install -r requirements.txt
 ## 4. Executando o Pipeline
 
 Todos os comandos são executados a partir da raiz do projeto via `make`.
-Os comandos de dashboard (`make annotate`, `make eda`, etc.) abrem o mesmo
-aplicativo Streamlit multi-página em `http://localhost:8501` — a navegação
-entre etapas é feita pelo menu lateral.
+`make dashboard` abre o aplicativo Streamlit multi-página em `http://localhost:8501`
+— a navegação entre etapas é feita pelo menu lateral.
 
 | Comando | Descrição |
 |---|---|
 | `make collect` | Coleta tweets via API X v2 |
-| `make annotate` | Abre o dashboard (página: Anotação) |
-| `make eda` | Abre o dashboard (página: Analytics) |
-| `make preprocess` | Abre o dashboard (página: Pré-processamento) |
-| `make process` | Abre o dashboard (página: Processamento) |
+| `make dashboard` | Abre o dashboard Streamlit multi-página |
 | `make evaluate` | Executa métricas de avaliação (CLI) |
 | `make db-up` | Sobe PostgreSQL + pgAdmin via Docker |
 | `make db-down` | Para os containers |
@@ -234,7 +232,7 @@ class MyExtractor(BaseExtractor):
 ### 4.3. Anotação Manual
 
 ```bash
-make annotate
+make dashboard
 # Acesse http://localhost:8501
 ```
 
@@ -247,7 +245,7 @@ make annotate
 ### 4.4. Exploração dos Dados (EDA)
 
 ```bash
-make eda
+make dashboard
 # Acesse http://localhost:8501
 ```
 
@@ -260,7 +258,7 @@ Dashboard com:
 ### 4.5. Pré-processamento
 
 ```bash
-make preprocess
+make dashboard
 # Acesse http://localhost:8501
 ```
 
@@ -272,7 +270,7 @@ na classificação final. As funções de limpeza residem em `app/shared/text_cl
 ### 4.6. Split do Dataset
 
 ```bash
-make annotate
+make dashboard
 # Navegue até "✂️ Split do Dataset" no menu lateral
 ```
 
@@ -289,19 +287,34 @@ A operação é idempotente: se o split já existir, exibe o resumo atual. Use a
 Pré-requisito para usar o `BERTimbauAnalyzer` no passo de processamento.
 Requer o split atribuído (passo 4.6) e mínimo ~300 tweets anotados.
 
+**Via dashboard (recomendado):**
+
+```bash
+make dashboard
+# Navegue até "🧠 Fine-tuning BERTimbau" no menu lateral
+```
+
+A página permite configurar hiperparâmetros (learning rate, batch size, épocas, etc.),
+iniciar o treinamento e acompanhar o progresso em tempo real por fold/época.
+Registra um histórico de execuções em `models/bert-timbau-sentiment/training_runs.json`.
+
+**Via CLI:**
+
 ```bash
 PYTHONPATH=. python -m app.core.processing.bert.bert_timbau_fine_tuner
 ```
 
-O modelo treinado é salvo em `models/bert-timbau-sentiment/`. O fine-tuner usa
-`WeightedTrainer` para lidar com desbalanceamento de classes e
+O fine-tuner executa K-Fold estratificado (4 folds) usando o particionamento
+persistido na tabela `dataset_split` pelo `DatasetSplitRepository`. O modelo do
+melhor fold (maior F1 macro na validação) é salvo em `models/bert-timbau-sentiment/`.
+Usa `WeightedTrainer` para lidar com desbalanceamento de classes e
 `EarlyStoppingCallback` com paciência de 2 épocas.
 
 ### 4.8. Processamento (Inferência)
 
 ```bash
-make process
-# Acesse http://localhost:8501
+make dashboard
+# Navegue até "🤖 Processamento" no menu lateral
 ```
 
 Dashboard de classificação que:

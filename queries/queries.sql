@@ -268,5 +268,4 @@ SELECT id,
        tweet_id,
        split,
        fold
-FROM public.dataset_split
-LIMIT 1000;
+FROM public.dataset_split;
