@@ -14,8 +14,8 @@ import pandas as pd
 import streamlit as st
 from transformers import TrainerCallback, TrainerControl, TrainerState
 
-import app.core.processing.bert.training_state as _ts
-from app.core.processing.bert.bert_timbau_fine_tuner import (
+import app.core.classification.bert.training_state as _ts
+from app.core.classification.bert.bert_timbau_fine_tuner import (
     BASE_MODEL,
     N_FOLDS,
     OUTPUT_DIR,
@@ -74,6 +74,14 @@ def _configs_match(c1: Dict, c2: Dict) -> bool:
 
 def _find_duplicate(config: Dict) -> Optional[Dict]:
     return next((r for r in _load_runs() if _configs_match(r["config"], config)), None)
+
+
+def _best_config() -> Optional[Dict]:
+    """Returns the config of the run with the highest best_val_f1_macro, or None."""
+    runs = _load_runs()
+    if not runs:
+        return None
+    return max(runs, key=lambda r: r.get("best_val_f1_macro", 0.0))["config"]
 
 
 # ── Custom HuggingFace Trainer callback ───────────────────────────────────────
@@ -205,25 +213,39 @@ st.caption(
 
 # ── Sidebar: configuration & controls ────────────────────────────────────────
 
+_LR_OPTIONS = [1e-5, 2e-5, 3e-5, 5e-5]
+_BATCH_OPTIONS = [8, 16, 32]
+
 with st.sidebar:
     st.header("Hiperparâmetros")
 
-    num_epochs = st.slider("Épocas máximas", min_value=1, max_value=100, value=12)
+    _best = _best_config()
+    if _best:
+        st.caption(f"Padrões carregados do melhor treinamento anterior.")
+
+    _default_epochs      = int(_best["num_train_epochs"])              if _best else 12
+    _default_lr_idx      = _LR_OPTIONS.index(_best["learning_rate"])   if _best and _best["learning_rate"] in _LR_OPTIONS else 1
+    _default_batch_idx   = _BATCH_OPTIONS.index(_best["per_device_train_batch_size"]) if _best and _best["per_device_train_batch_size"] in _BATCH_OPTIONS else 1
+    _default_warmup      = float(_best["warmup_ratio"])                if _best else 0.1
+    _default_weight_decay = float(_best["weight_decay"])               if _best else 0.01
+    _default_patience    = int(_best["early_stopping_patience"])       if _best else 2
+
+    num_epochs = st.slider("Épocas máximas", min_value=1, max_value=100, value=_default_epochs)
     lr = st.selectbox(
         "Learning rate",
-        options=[1e-5, 2e-5, 3e-5, 5e-5],
-        index=1,
+        options=_LR_OPTIONS,
+        index=_default_lr_idx,
         format_func=lambda x: f"{x:.0e}",
     )
-    batch_size = st.selectbox("Batch size (treino)", options=[8, 16, 32], index=1)
+    batch_size = st.selectbox("Batch size (treino)", options=_BATCH_OPTIONS, index=_default_batch_idx)
     warmup_ratio = st.slider(
-        "Warmup ratio", min_value=0.0, max_value=0.3, value=0.1, step=0.05
+        "Warmup ratio", min_value=0.0, max_value=0.3, value=_default_warmup, step=0.05
     )
     weight_decay = st.number_input(
-        "Weight decay", min_value=0.0, max_value=0.1, value=0.01, step=0.005,
+        "Weight decay", min_value=0.0, max_value=0.1, value=_default_weight_decay, step=0.005,
         format="%.3f",
     )
-    patience = st.slider("Early stopping (paciência)", min_value=1, max_value=5, value=2)
+    patience = st.slider("Early stopping (paciência)", min_value=1, max_value=5, value=_default_patience)
 
     st.divider()
 

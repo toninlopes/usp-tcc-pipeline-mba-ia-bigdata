@@ -3,7 +3,7 @@ from typing import Tuple
 import pandas as pd
 import pytest
 
-from app.core.processing.base_analyzer import BaseSentimentAnalyzer
+from app.core.classification.base_analyzer import BaseSentimentAnalyzer
 
 
 # ── Implementação mínima para testar a classe abstrata ────────────────────────

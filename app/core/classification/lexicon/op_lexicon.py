@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 
 import pandas as pd
 
-from app.core.processing.lexicon.lexicon_analyzer import LexiconSentimentAnalyzer
+from app.core.classification.lexicon.lexicon_analyzer import LexiconSentimentAnalyzer
 from app.shared.text_cleaner import (
     replace_urls,
     replace_emojis_with_codes,
@@ -16,7 +16,7 @@ from app.shared.text_cleaner import (
 
 # ── Configuração ──────────────────────────────────────────────────────────────
 
-# app/core/processing/ → app/core/ → app/ → project root
+# app/core/classification/ → app/core/ → app/ → project root
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 LEXICON_PATH = _PROJECT_ROOT / "data" / "lexicons" / "oplexicon_v3.0" / "lexico_v3.0.txt"

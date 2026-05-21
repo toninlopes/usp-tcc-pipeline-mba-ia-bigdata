@@ -10,7 +10,7 @@ Produz o modelo do melhor fold em models/bert-timbau-sentiment/, usado pelo
 BERTimbauAnalyzer via processing dashboard.
 
 Uso:
-    PYTHONPATH=. python -m app.core.processing.bert.bert_timbau_fine_tuner
+    PYTHONPATH=. python -m app.core.classification.bert.bert_timbau_fine_tuner
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ from app.shared.text_cleaner import (
 
 BASE_MODEL = "neuralmind/bert-base-portuguese-cased"
 
-# app/core/processing/bert/ → app/core/processing/ → app/core/ → app/ → root
+# app/core/classification/bert/ → app/core/classification/ → app/core/ → app/ → root
 _PROJECT_ROOT = Path(__file__).resolve().parents[4]
 OUTPUT_DIR = _PROJECT_ROOT / "models" / "bert-timbau-sentiment"
 

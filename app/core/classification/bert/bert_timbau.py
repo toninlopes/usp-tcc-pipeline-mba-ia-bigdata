@@ -8,7 +8,7 @@ from transformers.models.auto.modeling_auto import AutoModelForSequenceClassific
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 from transformers.pipelines import pipeline
 
-from app.core.processing.bert.bert_analyzer import BertSentimentAnalyzer
+from app.core.classification.bert.bert_analyzer import BertSentimentAnalyzer
 from app.shared.text_cleaner import (
     replace_urls,
     replace_emojis_with_codes,
@@ -17,8 +17,8 @@ from app.shared.text_cleaner import (
     space_normalization,
 )
 
-# app/core/processing/ → app/core/ → app/ → project root
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+# bert/ → processing/ → core/ → app/ → project root
+_PROJECT_ROOT = Path(__file__).resolve().parents[4]
 _FINE_TUNED_PATH = _PROJECT_ROOT / "models" / "bert-timbau-sentiment"
 
 
@@ -28,7 +28,7 @@ class BERTimbauAnalyzer(BertSentimentAnalyzer):
     Requer modelo treinado em models/bert-timbau-sentiment/ produzido por
     bert_timbau_fine_tuner.py. Execute antes de instanciar:
 
-        python -m app.core.processing.bert_timbau_fine_tuner
+        python -m app.core.classification.bert_timbau_fine_tuner
     """
 
     model_name = str(_FINE_TUNED_PATH)
@@ -38,7 +38,7 @@ class BERTimbauAnalyzer(BertSentimentAnalyzer):
         if not _FINE_TUNED_PATH.exists():
             raise RuntimeError(
                 f"Modelo fine-tuned não encontrado em {_FINE_TUNED_PATH}.\n"
-                f"Execute: python -m app.core.processing.bert_timbau_fine_tuner"
+                f"Execute: python -m app.core.classification.bert_timbau_fine_tuner"
             )
         super().__init__()
         self._model = self.load_model()

@@ -228,12 +228,12 @@ class TestQueryClassificationPairs:
         assert result.iloc[0]["human_label"] == "positivo"
         assert result.iloc[0]["model_label"] == "positivo"
 
-    def test_default_split_is_teste(self, repo, cursor):
+    def test_default_split_is_test(self, repo, cursor):
         cursor.fetchall.return_value = []
         mock_get_connection(repo, cursor)
         repo.query_classification_pairs("FinBERT-PT-BR")
         params = cursor.execute.call_args[0][1]
-        assert params == ("FinBERT-PT-BR", "teste")
+        assert params == ("FinBERT-PT-BR", "test")
 
     def test_passes_custom_split(self, repo, cursor):
         cursor.fetchall.return_value = []
@@ -259,9 +259,9 @@ class TestQueryClassificationPairs:
     def test_split_clause_present_when_provided(self, repo, cursor):
         cursor.fetchall.return_value = []
         mock_get_connection(repo, cursor)
-        repo.query_classification_pairs("FinBERT-PT-BR", split="teste")
+        repo.query_classification_pairs("FinBERT-PT-BR", split="test")
         query = cursor.execute.call_args[0][0]
-        assert "h.split" in query
+        assert "ds.split" in query
 
     def test_returns_empty_dataframe_on_no_results(self, repo, cursor):
         cursor.fetchall.return_value = []
