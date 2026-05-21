@@ -75,6 +75,110 @@ class ClassificationRepository(DatabaseManager):
             conn.rollback()
             return False
 
+    def upsert_tweets_classification(
+        self,
+        tweet_id: int,
+        is_finance_news: int,
+        sentiment: str,
+        classificator: str,
+        score: Optional[float] = None,
+    ) -> bool:
+        """Insere ou atualiza uma classificação automática (upsert por tweet_id + classificator).
+
+        Args:
+            tweet_id: FK para tweets.id.
+            is_finance_news: 1 para financeiro.
+            sentiment: Rótulo de sentimento ('positivo', 'negativo', 'neutro').
+            classificator: Origem da classificação.
+            score: Score de confiança do modelo.
+
+        Returns:
+            True se operação bem-sucedida, False caso contrário.
+        """
+        if hasattr(tweet_id, "item"):
+            tweet_id = int(tweet_id.item())
+        elif isinstance(tweet_id, (list, tuple)):
+            tweet_id = int(tweet_id[0])
+        else:
+            tweet_id = int(tweet_id)
+
+        delete_query = """
+        DELETE FROM tweets_classification
+        WHERE tweet_id = %s AND classificator = %s;
+        """
+        insert_query = """
+        INSERT INTO tweets_classification (
+            tweet_id, is_finance_news, why_is_finance_news,
+            sentiment, why_sentiment, classificator, score
+        ) VALUES (%s, %s, '', lower(%s), '', %s, %s);
+        """
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(delete_query, (tweet_id, classificator))
+                    cur.execute(
+                        insert_query,
+                        (tweet_id, int(is_finance_news), sentiment, classificator, score),
+                    )
+                    conn.commit()
+                    logger.info(f"Upsert de classificação do tweet ID {tweet_id} concluído.")
+                    return True
+        except Exception as e:
+            logger.error(f"Falha no upsert da classificação do tweet ID {tweet_id}: {e}")
+            conn.rollback()
+            return False
+
+    def query_classified_test_tweets(self, model_classificator: str) -> pd.DataFrame:
+        """Retorna os tweets do hold-out já classificados por um modelo, com comparação ao humano.
+
+        Args:
+            model_classificator: Nome do classificador (ex: 'FinBERT-PT-BR').
+
+        Returns:
+            DataFrame com colunas: tweet_id, texto, sentimento_humano, sentimento_modelo,
+            confiança, concordância.
+        """
+        query = """
+        SELECT
+            t.id         AS tweet_id,
+            t.note_tweet,
+            h.sentiment  AS sentimento_humano,
+            m.sentiment  AS sentimento_modelo,
+            m.score      AS confiança
+        FROM tweets_classification h
+        JOIN tweets_classification m ON h.tweet_id = m.tweet_id
+        JOIN dataset_split ds        ON ds.tweet_id = h.tweet_id
+        JOIN tweets t                ON t.id = h.tweet_id
+        WHERE h.classificator = 'Humano'
+          AND m.classificator = %s
+          AND ds.split = 'test'
+        ORDER BY t.id;
+        """
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(query, (model_classificator,))
+                    results = cur.fetchall()
+            logger.info(
+                f"query_classified_test_tweets({model_classificator}): {len(results)} tweets."
+            )
+            df = pd.DataFrame(
+                results,
+                columns=["tweet_id", "note_tweet", "sentimento_humano", "sentimento_modelo", "confiança"],
+            )
+            if not df.empty:
+                df["texto"] = df["note_tweet"].apply(
+                    lambda t: t[:120] + "…" if len(t) > 120 else t
+                )
+                df["concordância"] = (df["sentimento_humano"] == df["sentimento_modelo"]).map(
+                    {True: "✅", False: "❌"}
+                )
+                df = df[["tweet_id", "texto", "sentimento_humano", "sentimento_modelo", "confiança", "concordância"]]
+            return df
+        except Exception as e:
+            logger.error(f"Falha em query_classified_test_tweets: {e}")
+            return pd.DataFrame()
+
     def query_tweets_classification_by_id(self, tweet_id: int) -> pd.DataFrame:
         """Retorna todas as classificações de um tweet específico.
 
@@ -119,55 +223,64 @@ class ClassificationRepository(DatabaseManager):
     def query_classification_pairs(
         self,
         model_classificator: str,
-        split: Optional[str] = "teste",
+        split: Optional[str] = "test",
     ) -> pd.DataFrame:
-        """Retorna pares de classificação (Humano, Modelo) para o mesmo tweet.
-
+        """
+        Retorna pares de classificação (Humano, Modelo) para o mesmo tweet.
+ 
         Usado pela avaliação para comparar o gold standard humano com
         as predições de um modelo específico.
-
+ 
         Args:
             model_classificator: Nome do classificador a comparar com 'Humano'.
-                                Ex: 'FinBERT-PT-BR', 'SentiLex-PT', 'OpLexicon'.
-            split: Partição do dataset a usar — 'treino', 'validacao' ou 'teste'.
-                   Padrão 'teste' (hold-out). Passe None para usar todos os tweets
-                   anotados sem filtro de split (útil no dashboard).
-
+                Ex: 'FinBERT-PT-BR', 'BERTimbau-PT-BR', 'SentiLex-PT', 'OpLexicon'.
+            split: Partição do dataset a usar — 'train' ou 'test'.
+                Padrão 'test' (hold-out). Passe None para usar todos os tweets
+                anotados sem filtro de split (útil no dashboard).
+ 
         Returns:
             DataFrame com colunas tweet_id, human_label, model_label.
         """
-        split_clause = "AND h.split = %s" if split else ""
+        # O split está em dataset_split, não em tweets_classification.
+        # Quando split é fornecido, fazemos JOIN com dataset_split e
+        # filtramos pela coluna ds.split.
+        split_join = (
+            "JOIN dataset_split ds ON ds.tweet_id = h.tweet_id"
+            if split else ""
+        )
+        split_clause = "AND ds.split = %s" if split else ""
+ 
         query = f"""
-        SELECT
-            h.tweet_id,
-            h.sentiment AS human_label,
-            m.sentiment AS model_label
-        FROM tweets_classification h
-        JOIN tweets_classification m ON h.tweet_id = m.tweet_id
-        WHERE h.classificator = 'Humano'
-          AND m.classificator = %s
-          {split_clause}
-        ORDER BY h.tweet_id;
+            SELECT
+                h.tweet_id,
+                h.sentiment AS human_label,
+                m.sentiment AS model_label
+            FROM tweets_classification h
+            JOIN tweets_classification m ON h.tweet_id = m.tweet_id
+            {split_join}
+            WHERE h.classificator = 'Humano'
+              AND m.classificator = %s
+              {split_clause}
+            ORDER BY h.tweet_id;
         """
         params = (model_classificator, split) if split else (model_classificator,)
+ 
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute(query, params)
                     results = cur.fetchall()
-                    logger.info(
-                        f"Pares Humano vs {model_classificator}"
-                        f"{f' (split={split})' if split else ''}: {len(results)} encontrados."
-                    )
-                    return pd.DataFrame(
-                        results,
-                        columns=["tweet_id", "human_label", "model_label"],
-                    )
+            logger.info(
+                f"Pares Humano vs {model_classificator}"
+                f"{f' (split={split})' if split else ''}: {len(results)} encontrados."
+            )
+            return pd.DataFrame(
+                results,
+                columns=["tweet_id", "human_label", "model_label"],
+            )
         except Exception as e:
             logger.error(f"Falha ao buscar pares de classificação: {e}")
             return pd.DataFrame()
-
-    # ── Bootstrap ─────────────────────────────────────────────────────────────
 
     def bootstrap_human_labels(self, force: bool = False) -> dict:
         """Insere classificações 'Humano' derivadas das classificações automáticas.

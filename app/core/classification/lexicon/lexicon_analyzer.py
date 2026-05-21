@@ -4,7 +4,7 @@ from typing import Dict, Tuple
 
 import pandas as pd
 
-from app.core.processing.base_analyzer import BaseSentimentAnalyzer
+from app.core.classification.base_analyzer import BaseSentimentAnalyzer
 
 BAR_WIDTH = 40
 

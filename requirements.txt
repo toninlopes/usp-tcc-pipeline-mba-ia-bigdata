@@ -28,6 +28,7 @@ pydantic==2.5.3
 
 # Dev dependencies
 pytest==7.4.4
+pytest-cov==7.1.0
 black==23.12.1
 flake8==7.0.0
 plotly==6.5.2

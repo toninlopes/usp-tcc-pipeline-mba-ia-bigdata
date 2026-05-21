@@ -2447,5 +2447,36 @@
         "val_f1_macro": 0.7616772888859463
       }
     ]
+  },
+  {
+    "timestamp": "2026-05-20T17:40:07",
+    "config": {
+      "num_train_epochs": 12,
+      "learning_rate": 3e-05,
+      "per_device_train_batch_size": 8,
+      "warmup_ratio": 0.1,
+      "weight_decay": 0.01,
+      "early_stopping_patience": 2
+    },
+    "best_fold": 3,
+    "best_val_f1_macro": 0.7801845003803081,
+    "fold_results": [
+      {
+        "fold": 1,
+        "val_f1_macro": 0.7527165282256135
+      },
+      {
+        "fold": 2,
+        "val_f1_macro": 0.7495071654637008
+      },
+      {
+        "fold": 3,
+        "val_f1_macro": 0.7801845003803081
+      },
+      {
+        "fold": 4,
+        "val_f1_macro": 0.7725501589599055
+      }
+    ]
   }
 ]

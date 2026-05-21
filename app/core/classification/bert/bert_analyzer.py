@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Tuple
 
-from app.core.processing.base_analyzer import BaseSentimentAnalyzer
+from app.core.classification.base_analyzer import BaseSentimentAnalyzer
 
 
 class BertSentimentAnalyzer(BaseSentimentAnalyzer):

@@ -26,13 +26,14 @@ project/
 ├── app/                          ← todo o código Python
 │   ├── core/                     ← lógica de negócio (sem UI)
 │   │   ├── extraction/           ← coleta via API X v2
-│   │   ├── processing/           ← inferência de sentimento
+│   │   ├── classification/       ← inferência de sentimento
 │   │   │   ├── base_analyzer.py  ← contrato público (ABC)
 │   │   │   ├── bert/             ← modelos baseados em BERT
 │   │   │   │   ├── bert_analyzer.py
 │   │   │   │   ├── finbert_ptbr.py
 │   │   │   │   ├── bert_timbau.py
-│   │   │   │   └── bert_timbau_fine_tuner.py
+│   │   │   │   ├── bert_timbau_fine_tuner.py
+│   │   │   │   └── training_state.py
 │   │   │   └── lexicon/          ← modelos baseados em léxico
 │   │   │       ├── lexicon_analyzer.py
 │   │   │       ├── senti_lex.py
@@ -42,11 +43,10 @@ project/
 │   │   ├── app.py                ← entrypoint multi-página
 │   │   └── pages/                ← uma página por etapa do pipeline
 │   │       ├── annotation.py     ← anotação manual tweet a tweet
-│   │       ├── eda.py            ← analytics e exploração dos dados
-│   │       ├── exploration.py    ← exploração dos dados brutos
-│   │       ├── preprocessing.py  ← impacto do pré-processamento
+│   │       ├── exploration.py    ← exploração e analytics dos dados
 │   │       ├── dataset_split.py  ← particionamento train/test/fold
-│   │       ├── processing.py     ← inferência dos modelos
+│   │       ├── fine_tuning.py    ← fine-tuning do BERTimbau (dashboard)
+│   │       ├── classification.py ← inferência dos modelos com pré-processamento
 │   │       └── evaluation.py     ← métricas de avaliação
 │   └── shared/                   ← código transversal
 │       ├── db/                   ← acesso ao banco de dados
@@ -83,8 +83,8 @@ a partir de `app.*`:
 ```python
 # correto
 from app.shared.db.tweets import TweetsRepository
-from app.core.processing.bert.finbert_ptbr import FinBertPTBRAnalyzer
-from app.core.processing.lexicon.senti_lex import SentiLexAnalyzer
+from app.core.classification.bert.finbert_ptbr import FinBertPTBRAnalyzer
+from app.core.classification.lexicon.senti_lex import SentiLexAnalyzer
 
 # errado — nunca usar sys.path.insert
 ```
@@ -117,19 +117,19 @@ Usar os repositórios específicos:
 ## 4. Hierarquia de modelos de sentimento
 
 ```
-BaseSentimentAnalyzer              (processing/base_analyzer.py)
-├── BertSentimentAnalyzer          (processing/bert/bert_analyzer.py)
-│   ├── FinBertPTBRAnalyzer        (processing/bert/finbert_ptbr.py)
-│   └── BERTimbauAnalyzer          (processing/bert/bert_timbau.py)
-└── LexiconSentimentAnalyzer       (processing/lexicon/lexicon_analyzer.py)
-    ├── SentiLexAnalyzer           (processing/lexicon/senti_lex.py)
-    └── OpLexiconAnalyzer          (processing/lexicon/op_lexicon.py)
+BaseSentimentAnalyzer              (classification/base_analyzer.py)
+├── BertSentimentAnalyzer          (classification/bert/bert_analyzer.py)
+│   ├── FinBertPTBRAnalyzer        (classification/bert/finbert_ptbr.py)
+│   └── BERTimbauAnalyzer          (classification/bert/bert_timbau.py)
+└── LexiconSentimentAnalyzer       (classification/lexicon/lexicon_analyzer.py)
+    ├── SentiLexAnalyzer           (classification/lexicon/senti_lex.py)
+    └── OpLexiconAnalyzer          (classification/lexicon/op_lexicon.py)
 ```
 
 Para adicionar um novo modelo BERT:
 
 ```python
-# app/core/processing/bert/my_bert.py
+# app/core/classification/bert/my_bert.py
 class MyBertAnalyzer(BertSentimentAnalyzer):
     model_name = "org/my-model"
     classificator = "MyModel"
@@ -142,7 +142,7 @@ class MyBertAnalyzer(BertSentimentAnalyzer):
 Para adicionar um novo léxico:
 
 ```python
-# app/core/processing/lexicon/my_lexicon.py
+# app/core/classification/lexicon/my_lexicon.py
 class MyLexiconAnalyzer(LexiconSentimentAnalyzer):
     classificator = "MyLexicon"
 
@@ -228,10 +228,7 @@ Restrições: `tweet_id` único; fold obrigatoriamente `NULL` quando `split='tes
 
 ```makefile
 make collect      # coleta tweets via API X v2
-make annotate     # abre dashboard Streamlit (anotação manual)
-make eda          # abre dashboard Streamlit (exploração de dados)
-make preprocess   # abre dashboard Streamlit (impacto do pré-processamento)
-make process      # abre dashboard Streamlit (inferência dos modelos)
+make dashboard    # abre o dashboard Streamlit multi-página
 make evaluate     # executa métricas de avaliação (CLI)
 make db-up        # sobe PostgreSQL + pgAdmin via Docker
 make db-down      # para os containers
@@ -244,14 +241,19 @@ make db-down      # para os containers
 Testes ficam co-localizados com o módulo que testam (`*_tests.py`).
 
 ```bash
-python -m pytest app/ -v                          # todos os testes
-python -m pytest app/shared/ -v                   # apenas shared
-python -m pytest app/core/ -v                     # apenas core
-python -m pytest app/core/processing/bert/ -v     # apenas modelos BERT
-python -m pytest app/core/processing/lexicon/ -v  # apenas modelos léxicos
+python -m pytest app/ -v                               # todos os testes
+python -m pytest app/shared/ -v                        # apenas shared
+python -m pytest app/core/ -v                          # apenas core
+python -m pytest app/core/classification/bert/ -v      # apenas modelos BERT
+python -m pytest app/core/classification/lexicon/ -v   # apenas modelos léxicos
 ```
 
 Fixtures e helpers compartilhados ficam em `app/shared/conftest.py`.
+
+O pre-commit hook (`.git/hooks/pre-commit`) bloqueia commits se qualquer teste
+falhar ou a cobertura ficar abaixo de 80%. Cobertura configurada em `.coveragerc`:
+exclui `app/dashboard/` (UI não testável unitariamente) e o fine-tuner
+(`bert_timbau_fine_tuner.py`, que requer GPU).
 
 ---
 
@@ -261,7 +263,7 @@ O `BERTimbauAnalyzer` requer um modelo treinado localmente antes de ser usado.
 
 ```bash
 # Treinar o modelo (requer mínimo ~300 tweets anotados)
-python -m app.core.processing.bert.bert_timbau_fine_tuner
+python -m app.core.classification.bert.bert_timbau_fine_tuner
 
 # O modelo será salvo em:
 # models/bert-timbau-sentiment/

@@ -25,6 +25,9 @@ FINANCIAL_ENTITIES: frozenset[str] = frozenset(
 def replace_urls(text: str) -> str:
     return re.sub(r"http\S+", "[URL]", text)
 
+def remove_urls(text: str) -> str:
+    return re.sub(r"http\S+", "", text)
+
 
 def remove_emojis(text: str) -> str:
     return emoji.replace_emoji(text, "")
@@ -36,6 +39,10 @@ def replace_emojis_with_codes(text: str) -> str:
 
 def replace_mentions(text: str) -> str:
     return re.sub(r"@\w+", "[MENTION]", text)
+
+
+def remove_mentions(text: str) -> str:
+    return re.sub(r"@\w+", "", text)
 
 
 def remove_hashtags(text: str) -> str:

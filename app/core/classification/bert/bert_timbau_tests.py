@@ -16,7 +16,7 @@ for _mod in [
 ]:
     sys.modules.setdefault(_mod, MagicMock())
 
-from app.core.processing.bert.bert_timbau import BERTimbauAnalyzer, _FINE_TUNED_PATH
+from app.core.classification.bert.bert_timbau import BERTimbauAnalyzer, _FINE_TUNED_PATH
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -77,7 +77,7 @@ class TestClassAttributes:
 
 class TestInit:
     def test_raises_when_model_not_found(self):
-        with patch("app.core.processing.bert.bert_timbau._FINE_TUNED_PATH") as mock_path:
+        with patch("app.core.classification.bert.bert_timbau._FINE_TUNED_PATH") as mock_path:
             mock_path.exists.return_value = False
             with pytest.raises(RuntimeError, match="Modelo fine-tuned não encontrado"):
                 BERTimbauAnalyzer()
@@ -85,7 +85,7 @@ class TestInit:
     def test_does_not_raise_when_model_exists(self, tmp_path):
         fake_model_dir = tmp_path / "bert-timbau-sentiment"
         fake_model_dir.mkdir()
-        with patch("app.core.processing.bert.bert_timbau._FINE_TUNED_PATH", fake_model_dir), \
+        with patch("app.core.classification.bert.bert_timbau._FINE_TUNED_PATH", fake_model_dir), \
              patch("app.shared.db.database.load_dotenv"), \
              patch.object(BERTimbauAnalyzer, "load_model", return_value=MagicMock()):
             instance = BERTimbauAnalyzer()

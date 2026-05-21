@@ -237,14 +237,14 @@ FROM classified t
     -- AND has_finbert_classification = FALSE
 ORDER BY t.created_at DESC;
 
-SELECT *
-FROM tweets_classification
-WHERE
-    classificator = 'FinBERT-PT-BR';
+SELECT count(*) FROM tweets_classification
+-- WHERE classificator = 'BERTimbau';
+-- WHERE classificator = 'FinBERT-PT-BR';
+-- WHERE classificator = 'OpLexicon';
+WHERE classificator = 'SentiLex-PT';
 
 DELETE FROM tweets_classification
-WHERE
-    classificator = 'FinBERT-PT-BR';
+WHERE classificator = 'FinBERT-PT-BR';
 
 SELECT t.note_tweet
 FROM tweets t

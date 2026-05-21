@@ -1,0 +1,13 @@
+[run]
+source = app
+omit =
+    # Streamlit UI pages — not unit-testable without a running browser
+    app/dashboard/*
+    # Fine-tuner requires GPU, model downloads, and full training infrastructure
+    app/core/classification/bert/bert_timbau_fine_tuner.py
+    app/core/classification/bert/bert_timbau_fine_tuner_tests.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:

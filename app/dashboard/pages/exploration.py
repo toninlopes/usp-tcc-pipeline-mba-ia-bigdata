@@ -19,6 +19,8 @@ def load_data() -> pd.DataFrame:
     df["token_count"] = df["note_tweet"].apply(
         lambda x: len(str(x).split()) if pd.notna(x) else 0
     )
+    df["sentiment"] = df["sentiment"].fillna("")
+    df["is_finance_tweet"] = df["is_finance_tweet"].fillna(-1)
     return df
 
 
@@ -37,13 +39,41 @@ df = load_data()
 st.title("🔍 Exploração dos Dados Coletados")
 st.write("---")
 
+# ── 1. Dimensões do Dataset ───────────────────────────────────────────────────
+
 st.header("1. Dimensões do Dataset")
-col1, col2, col3 = st.columns(3)
+
+col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Total de tweets", len(df))
 col2.metric("Veículos", df["username"].nunique())
 col3.metric("Período", f"{df['ano_mes'].min()} a {df['ano_mes'].max()}")
+col4.metric("Financeiros", int((df["is_finance_tweet"] == 1).sum()))
+col5.metric("Não financeiros", int((df["is_finance_tweet"] == 0).sum()))
+
+chart_col1, chart_col2 = st.columns(2)
+
+with chart_col1:
+    st.subheader("Distribuição de Sentimentos")
+    sentiment_counts = df[df["sentiment"] != ""].copy()
+    sentiment_counts = sentiment_counts["sentiment"].value_counts().reset_index()
+    sentiment_counts.columns = ["Sentimento", "Quantidade"]
+    fig = px.bar(sentiment_counts, x="Sentimento", y="Quantidade", color="Sentimento")
+    st.plotly_chart(fig, use_container_width=True)
+
+with chart_col2:
+    st.subheader("Financeiro vs. Não Financeiro")
+    finance_counts = df["is_finance_tweet"].value_counts().reset_index()
+    finance_counts.columns = ["Categoria", "Quantidade"]
+    finance_counts["Categoria"] = finance_counts["Categoria"].map(
+        {1: "Financeiro", 0: "Não financeiro", -1: "Não classificado"}
+    )
+    fig2 = px.pie(finance_counts, values="Quantidade", names="Categoria")
+    st.plotly_chart(fig2, use_container_width=True)
 
 st.write("---")
+
+# ── 2. Distribuição Temporal ──────────────────────────────────────────────────
+
 st.header("2. Distribuição Temporal")
 temporal = df.groupby(["ano_mes", "username"]).size().reset_index(name="quantidade")
 fig = px.bar(temporal, x="ano_mes", y="quantidade", color="username", barmode="group",
@@ -51,6 +81,9 @@ fig = px.bar(temporal, x="ano_mes", y="quantidade", color="username", barmode="g
 st.plotly_chart(fig, use_container_width=True)
 
 st.write("---")
+
+# ── 3. Comprimento dos Textos ─────────────────────────────────────────────────
+
 st.header("3. Comprimento dos Textos")
 chart_col1, chart_col2 = st.columns(2)
 with chart_col1:
@@ -63,6 +96,9 @@ with chart_col2:
     st.plotly_chart(fig, use_container_width=True)
 
 st.write("---")
+
+# ── 4. Campos Ausentes ────────────────────────────────────────────────────────
+
 st.header("4. Campos Ausentes")
 missing = df.isnull().sum().reset_index()
 missing.columns = ["Campo", "Ausentes"]

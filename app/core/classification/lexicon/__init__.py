@@ -1,0 +1,2 @@
+from app.core.classification.lexicon.lexicon_analyzer import LexiconSentimentAnalyzer
+from app.core.classification.lexicon.senti_lex import SentiLexAnalyzer

@@ -6,3 +6,5 @@
 *.safetensors
 *.bin
 models/bert-timbau-sentiment/checkpoints/
+.coverage
+htmlcov/
