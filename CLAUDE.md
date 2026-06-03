@@ -31,13 +31,13 @@ project/
 │   │   │   ├── bert/             ← modelos baseados em BERT
 │   │   │   │   ├── bert_analyzer.py
 │   │   │   │   ├── finbert_ptbr.py
-│   │   │   │   ├── bert_timbau.py
-│   │   │   │   ├── bert_timbau_fine_tuner.py
-│   │   │   │   └── training_state.py
+│   │   │   │   └── bert_timbau.py
 │   │   │   └── lexicon/          ← modelos baseados em léxico
 │   │   │       ├── lexicon_analyzer.py
 │   │   │       ├── senti_lex.py
 │   │   │       └── op_lexicon.py
+│   │   ├── fine_tuning/          ← fine-tuning do BERTimbau
+│   │   │   └── bert_timbau_fine_tuner.py
 │   │   └── evaluation/           ← métricas de avaliação
 │   ├── dashboard/                ← UI Streamlit (sem lógica de negócio)
 │   │   ├── app.py                ← entrypoint multi-página
@@ -146,9 +146,9 @@ Para adicionar um novo léxico:
 class MyLexiconAnalyzer(LexiconSentimentAnalyzer):
     classificator = "MyLexicon"
 
-    def load_model(self) -> Dict[str, int]: ...
+    def _load_model(self) -> Dict[str, int]: ...
     def preprocess(self, text: str) -> str: ...
-    def predict(self, text: str) -> Tuple[str, float]: ...
+    # predict(text) → Tuple[str, float, List[str]] herdado de LexiconSentimentAnalyzer
 ```
 
 ---
@@ -263,7 +263,7 @@ O `BERTimbauAnalyzer` requer um modelo treinado localmente antes de ser usado.
 
 ```bash
 # Treinar o modelo (requer mínimo ~300 tweets anotados)
-python -m app.core.classification.bert.bert_timbau_fine_tuner
+python -m app.core.fine_tuning.bert_timbau_fine_tuner
 
 # O modelo será salvo em:
 # models/bert-timbau-sentiment/
@@ -282,7 +282,7 @@ na primeira instanciação de cada analisador.
 
 | Léxico         | Caminho esperado                               | Fonte                             |
 |----------------|------------------------------------------------|-----------------------------------|
-| SentiLex-PT02  | `data/sentilex/sentiLex-PT02.txt`              | Download automático ao instanciar |
+| SentiLex-flex-PT02 | `data/sentilex/sentiLex-flex-PT02.txt`     | Download automático ao instanciar |
 | OpLexicon v3.0 | `data/lexicons/oplexicon_v3.0/lexico_v3.0.txt` | Download automático ao instanciar |
 
 ---
@@ -306,4 +306,4 @@ Coleta via `GET /2/users/{id}/tweets` (API X v2, Bearer Token).
 
 ---
 
-*Última atualização: maio/2026*
+*Última atualização: junho/2026*

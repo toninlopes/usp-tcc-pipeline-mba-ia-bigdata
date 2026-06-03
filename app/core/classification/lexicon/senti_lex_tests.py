@@ -3,12 +3,14 @@ from typing import Dict
 from unittest.mock import MagicMock, mock_open, patch
 import pytest
 
-from app.core.classification.lexicon.senti_lex import (
-    SentiLexAnalyzer,
-    _apply_negation,
-    _confidence,
-    NEGATION_WINDOW,
-)
+from app.core.classification.lexicon.senti_lex import SentiLexAnalyzer
+from app.core.classification.lexicon.lexicon_analyzer import NEGATION_WINDOW
+
+# _apply_negation and _confidence are pure methods with no instance state;
+# bind to a stub so existing test call-sites stay unchanged.
+_stub = SentiLexAnalyzer.__new__(SentiLexAnalyzer)
+_apply_negation = _stub._apply_negation
+_confidence = _stub._confidence
 
 
 # ── _apply_negation ───────────────────────────────────────────────────────────
@@ -117,7 +119,7 @@ class TestLoadModel:
             instance._classification_repo = MagicMock()
             instance._lexicon_path = lex_file
             instance._model = {}
-        result = instance.load_model()
+        result = instance._load_model()
         assert result["bom"] == 1
 
     def test_parses_negative_entry(self, tmp_path):
@@ -129,7 +131,7 @@ class TestLoadModel:
             instance._classification_repo = MagicMock()
             instance._lexicon_path = lex_file
             instance._model = {}
-        result = instance.load_model()
+        result = instance._load_model()
         assert result["ruim"] == -1
 
     def test_skips_malformed_lines(self, tmp_path):
@@ -141,7 +143,7 @@ class TestLoadModel:
             instance._classification_repo = MagicMock()
             instance._lexicon_path = lex_file
             instance._model = {}
-        result = instance.load_model()
+        result = instance._load_model()
         assert result == {}
 
     def test_raises_if_not_found_after_download(self, tmp_path):
@@ -154,7 +156,7 @@ class TestLoadModel:
             instance._model = {}
         with patch.object(instance, "_download_lexicon"):
             with pytest.raises(FileNotFoundError):
-                instance.load_model()
+                instance._load_model()
 
 
 # ── preprocess ────────────────────────────────────────────────────────────────
@@ -166,10 +168,9 @@ class TestPreprocess:
     def test_replaces_mention(self, analyzer):
         assert "@InfoMoney" not in analyzer.preprocess("Via @InfoMoney")
 
-    def test_removes_hashtag_symbol(self, analyzer):
+    def test_preserves_hashtag(self, analyzer):
         result = analyzer.preprocess("Alta do #IBOV")
-        assert "#" not in result
-        assert "IBOV" in result
+        assert "#IBOV" in result
 
     def test_lowercases_text(self, analyzer):
         assert "mercado" in analyzer.preprocess("Mercado")
@@ -182,34 +183,34 @@ class TestPreprocess:
 
 class TestPredict:
     def test_positive_text(self, analyzer):
-        label, score = analyzer.predict("bom resultado")
+        label, score, _ = analyzer.predict("bom resultado")
         assert label == "positivo"
         assert score > 0
 
     def test_negative_text(self, analyzer):
-        label, score = analyzer.predict("ruim resultado")
+        label, score, _ = analyzer.predict("ruim resultado")
         assert label == "negativo"
         assert score > 0
 
     def test_neutral_text_no_lexicon_match(self, analyzer):
-        label, score = analyzer.predict("resultado mercado hoje")
+        label, score, _ = analyzer.predict("resultado mercado hoje")
         assert label == "neutro"
 
     def test_negation_inverts_positive(self, analyzer):
         # "não bom" deve resultar em negativo
-        label, _ = analyzer.predict("não bom")
+        label, _, _ = analyzer.predict("não bom")
         assert label == "negativo"
 
     def test_empty_text_returns_neutral(self, analyzer):
-        label, score = analyzer.predict("")
+        label, score, _ = analyzer.predict("")
         assert label == "neutro"
         assert score == 0.0
 
     def test_score_between_zero_and_one(self, analyzer):
-        _, score = analyzer.predict("bom bom bom")
+        _, score, _ = analyzer.predict("bom bom bom")
         assert 0.0 <= score <= 1.0
 
     def test_returns_tuple(self, analyzer):
         result = analyzer.predict("bom resultado")
         assert isinstance(result, tuple)
-        assert len(result) == 2
+        assert len(result) == 3

@@ -1,32 +1,38 @@
 {
   "FinBERT-PT-BR": {
-    "concordance": 0.45576407506702415,
+    "concordance": 0.40482573726541554,
     "steps": [
-      "Substituir URLs por [URL]",
-      "Remover emojis",
-      "Substituir menções por [MENTION]",
-      "Remover hashtags (#)",
-      "Normalizar espaços",
-      "Normalizar caixa (preserva tickers)",
-      "Remover stopwords"
+      "Normalizar espaços"
     ]
   },
   "BERTimbau": {
-    "concordance": 0.8579088471849866,
+    "concordance": 0.8927613941018767,
     "steps": [
+      "Normalizar espaços",
       "Normalizar caixa (preserva tickers)"
     ]
   },
   "SentiLex-PT": {
-    "concordance": 0.3351206434316354,
+    "concordance": 0.289544235924933,
     "steps": [
-      "Remover stopwords"
+      "Remover URLs",
+      "Remover emojis",
+      "Remover menções (@)",
+      "Remover pontuação de borda (.!?,)",
+      "Normalizar espaços",
+      "Normalizar caixa (preserva tickers)"
     ]
   },
   "OpLexicon": {
-    "concordance": 0.2707774798927614,
+    "concordance": 0.2386058981233244,
     "steps": [
-      "Remover stopwords"
+      "Remover URLs",
+      "Remover emojis",
+      "Remover menções (@)",
+      "Remover pontuação de borda (.!?,)",
+      "Normalizar espaços",
+      "Normalizar caixa (preserva tickers)",
+      "Lematizar"
     ]
   }
 }

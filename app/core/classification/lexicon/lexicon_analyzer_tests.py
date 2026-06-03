@@ -1,4 +1,4 @@
-from typing import Dict, Tuple
+from typing import Dict
 from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
@@ -12,21 +12,11 @@ class ConcreteLexiconAnalyzer(LexiconSentimentAnalyzer):
     classificator = "TestLexicon"
     model_name = "test"
 
-    def load_model(self) -> Dict[str, int]:
+    def _load_model(self) -> Dict[str, int]:
         return {"bom": 1, "ótimo": 1, "ruim": -1, "péssimo": -1}
 
     def preprocess(self, text: str) -> str:
         return text.lower()
-
-    def predict(self, text: str) -> Tuple[str, float]:
-        tokens = text.split()
-        lexicon = self._model
-        score = sum(lexicon.get(t, 0) for t in tokens)
-        if score > 0:
-            return "positivo", 0.8
-        elif score < 0:
-            return "negativo", 0.8
-        return "neutro", 0.0
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

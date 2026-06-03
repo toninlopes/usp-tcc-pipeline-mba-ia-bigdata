@@ -269,3 +269,9 @@ SELECT id,
        split,
        fold
 FROM public.dataset_split;
+
+
+SELECT t.id, t.note_tweet as tweet, t.sentiment, ds.split, ds.fold FROM tweets t, dataset_split ds
+WHERE t.id = ds.tweet_id AND is_finance_tweet = 1;
+
+SELECT id, tweet_id, split, fold FROM dataset_split;

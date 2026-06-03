@@ -35,13 +35,13 @@ collect-twitter-data/
 │   │   │   ├── bert/                         # Modelos baseados em BERT
 │   │   │   │   ├── bert_analyzer.py          # BertSentimentAnalyzer (base)
 │   │   │   │   ├── finbert_ptbr.py           # FinBertPTBRAnalyzer
-│   │   │   │   ├── bert_timbau.py            # BERTimbauAnalyzer
-│   │   │   │   ├── bert_timbau_fine_tuner.py # Fine-tuning com K-Fold estratificado
-│   │   │   │   └── training_state.py         # Estado compartilhado entre thread de treino e dashboard
+│   │   │   │   └── bert_timbau.py            # BERTimbauAnalyzer
 │   │   │   └── lexicon/                      # Modelos baseados em léxico
 │   │   │       ├── lexicon_analyzer.py       # LexiconSentimentAnalyzer (base)
 │   │   │       ├── senti_lex.py              # SentiLexAnalyzer
 │   │   │       └── op_lexicon.py             # OpLexiconAnalyzer
+│   │   ├── fine_tuning/                      # Fine-tuning do BERTimbau
+│   │   │   └── bert_timbau_fine_tuner.py     # K-Fold estratificado, WeightedTrainer
 │   │   └── evaluation/
 │   │       └── metrics.py                    # Acurácia, F1, matriz de confusão
 │   │
@@ -287,7 +287,7 @@ Registra um histórico de execuções em `models/bert-timbau-sentiment/training_
 **Via CLI:**
 
 ```bash
-PYTHONPATH=. python -m app.core.classification.bert.bert_timbau_fine_tuner
+PYTHONPATH=. python -m app.core.fine_tuning.bert_timbau_fine_tuner
 ```
 
 O fine-tuner executa K-Fold estratificado (4 folds) usando o particionamento
@@ -306,7 +306,7 @@ make dashboard
 Dashboard de classificação que:
 - Seleciona o algoritmo entre os disponíveis: **FinBERT-PT-BR**, **BERTimbau**, **SentiLex-PT**, **OpLexicon**
 - Permite configurar etapas de pré-processamento textual via checkboxes (remoção de URLs,
-  menções, hashtags, emojis, stopwords, lematização, etc.)
+  menções, hashtags, emojis, pontuação de borda, stopwords, lematização, etc.)
 - Salva e restaura automaticamente a melhor configuração de pré-processamento por modelo
   em `models/best_preprocessing.json` (apenas quando a concordância melhora)
 - Classifica o conjunto hold-out (`split='test'`) do `DatasetSplitRepository`

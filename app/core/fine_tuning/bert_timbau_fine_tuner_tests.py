@@ -27,7 +27,7 @@ for _mod in [
 ]:
     sys.modules.setdefault(_mod, MagicMock())
 
-from app.core.classification.bert.bert_timbau_fine_tuner import (
+from app.core.fine_tuning.bert_timbau_fine_tuner import (
     preprocess,
     prepare_df,
     TweetDataset,
@@ -74,8 +74,8 @@ class TestConstants:
         for label, id_ in LABEL_TO_ID.items():
             assert ID_TO_LABEL[id_] == label
 
-    def test_max_length_is_128(self):
-        assert MAX_LENGTH == 128
+    def test_max_length_is_256(self):
+        assert MAX_LENGTH == 256
 
     def test_base_model_is_bertimbau(self):
         assert "bert-base-portuguese-cased" in BASE_MODEL
@@ -194,16 +194,16 @@ class TestComputeMetrics:
     def test_returns_dict_with_expected_keys(self):
         logits = np.array([[2.0, 0.5, 0.1], [0.1, 0.5, 2.0]])
         labels = np.array([0, 2])
-        with patch("app.core.classification.bert.bert_timbau_fine_tuner.accuracy_score", return_value=1.0), \
-             patch("app.core.classification.bert.bert_timbau_fine_tuner.f1_score", return_value=1.0):
+        with patch("app.core.fine_tuning.bert_timbau_fine_tuner.accuracy_score", return_value=1.0), \
+             patch("app.core.fine_tuning.bert_timbau_fine_tuner.f1_score", return_value=1.0):
             result = compute_metrics((logits, labels))
         assert set(result.keys()) == {"accuracy", "f1_macro", "f1_weighted"}
 
     def test_returns_floats(self):
         logits = np.array([[2.0, 0.5, 0.1], [0.1, 0.5, 2.0]])
         labels = np.array([0, 2])
-        with patch("app.core.classification.bert.bert_timbau_fine_tuner.accuracy_score", return_value=1.0), \
-             patch("app.core.classification.bert.bert_timbau_fine_tuner.f1_score", return_value=1.0):
+        with patch("app.core.fine_tuning.bert_timbau_fine_tuner.accuracy_score", return_value=1.0), \
+             patch("app.core.fine_tuning.bert_timbau_fine_tuner.f1_score", return_value=1.0):
             result = compute_metrics((logits, labels))
         for v in result.values():
             assert isinstance(v, float)
@@ -217,8 +217,8 @@ class TestComputeMetrics:
             captured_preds["preds"] = y_pred
             return 1.0
 
-        with patch("app.core.classification.bert.bert_timbau_fine_tuner.accuracy_score", side_effect=mock_accuracy), \
-             patch("app.core.classification.bert.bert_timbau_fine_tuner.f1_score", return_value=1.0):
+        with patch("app.core.fine_tuning.bert_timbau_fine_tuner.accuracy_score", side_effect=mock_accuracy), \
+             patch("app.core.fine_tuning.bert_timbau_fine_tuner.f1_score", return_value=1.0):
             compute_metrics((logits, labels))
 
         np.testing.assert_array_equal(captured_preds["preds"], [0, 2])
