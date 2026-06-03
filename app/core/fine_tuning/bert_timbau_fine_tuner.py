@@ -10,12 +10,13 @@ Produz o modelo do melhor fold em models/bert-timbau-sentiment/, usado pelo
 BERTimbauAnalyzer via processing dashboard.
 
 Uso:
-    PYTHONPATH=. python -m app.core.classification.bert.bert_timbau_fine_tuner
+    PYTHONPATH=. python -m app.core.fine_tuning.bert_timbau_fine_tuner
 """
 
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -49,11 +50,12 @@ from app.shared.text_cleaner import (
 
 BASE_MODEL = "neuralmind/bert-base-portuguese-cased"
 
-# app/core/classification/bert/ → app/core/classification/ → app/core/ → app/ → root
-_PROJECT_ROOT = Path(__file__).resolve().parents[4]
+# app/core/fine_tuning/ → app/core/ → app/ → root
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 OUTPUT_DIR = _PROJECT_ROOT / "models" / "bert-timbau-sentiment"
+RUNS_FILE = OUTPUT_DIR / "training_runs.json"
 
-MAX_LENGTH = 128
+MAX_LENGTH = 256
 RANDOM_STATE = 42
 N_FOLDS = 4  # must match DatasetSplitRepository._N_SPLITS
 
@@ -170,12 +172,15 @@ def train_fold(
     Returns:
         Tupla (val_f1_macro, caminho do modelo salvo).
     """
+    overrides = training_args_override or {}
+    max_length = int(overrides.get("max_length", MAX_LENGTH))
+
     def encode(texts: List[str]) -> Dict:
         return tokenizer(
             texts,
             truncation=True,
             padding="max_length",
-            max_length=MAX_LENGTH,
+            max_length=max_length,
         )
 
     train_ds = TweetDataset(
@@ -201,7 +206,6 @@ def train_fold(
         label2id=LABEL_TO_ID,
     )
 
-    overrides = training_args_override or {}
     fold_dir = OUTPUT_DIR / "checkpoints" / f"fold_{fold}"
     args = TrainingArguments(
         output_dir=str(fold_dir),
@@ -252,6 +256,49 @@ def train_fold(
         torch.cuda.empty_cache()
 
     return val_f1, model_dir
+
+
+# ── Promoção do melhor modelo ─────────────────────────────────────────────────
+
+def get_saved_model_f1() -> Optional[float]:
+    """Returns the val_f1_macro of the model currently saved in OUTPUT_DIR, or None."""
+    if not RUNS_FILE.exists():
+        return None
+    try:
+        with open(RUNS_FILE, encoding="utf-8") as f:
+            runs = json.load(f)
+        saved = next((r for r in runs if r.get("is_saved_model")), None)
+        return float(saved["best_val_f1_macro"]) if saved else None
+    except Exception:
+        return None
+
+
+def promote_best_model(best_dir: Path, val_f1_macro: float, run_timestamp: str) -> bool:
+    """Copies best_dir → OUTPUT_DIR only if val_f1_macro beats the saved model.
+
+    Marks the matching entry in training_runs.json with is_saved_model=True so the
+    saved model and its hyperparameters can always be traced back from that file.
+    Returns True when the model is updated, False when the saved model is already
+    equal or better (OUTPUT_DIR is left untouched in that case).
+    """
+    saved = get_saved_model_f1()
+    if saved is not None and val_f1_macro <= saved:
+        return False
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(best_dir, OUTPUT_DIR, dirs_exist_ok=True)
+    with open(OUTPUT_DIR / "id2label.json", "w", encoding="utf-8") as f:
+        json.dump(ID_TO_LABEL, f, ensure_ascii=False, indent=2)
+
+    if RUNS_FILE.exists():
+        with open(RUNS_FILE, encoding="utf-8") as f:
+            runs = json.load(f)
+        for r in runs:
+            r["is_saved_model"] = (r.get("timestamp") == run_timestamp)
+        with open(RUNS_FILE, "w", encoding="utf-8") as f:
+            json.dump(runs, f, ensure_ascii=False, indent=2)
+
+    return True
 
 
 # ── Rotina principal ──────────────────────────────────────────────────────────

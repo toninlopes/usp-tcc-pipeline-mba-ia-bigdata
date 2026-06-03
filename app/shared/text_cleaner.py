@@ -28,14 +28,17 @@ def replace_urls(text: str) -> str:
 def remove_urls(text: str) -> str:
     return re.sub(r"http\S+", "", text)
 
-
 def remove_emojis(text: str) -> str:
     return emoji.replace_emoji(text, "")
 
-
 def replace_emojis_with_codes(text: str) -> str:
-    return emoji.demojize(text)
+    return emoji.demojize(text, language="pt")
 
+def replace_emojis_with_unicode(text: str) -> str:
+    return emoji.replace_emoji(
+        text,
+        replace=lambda chars, data: chars.encode("unicode-escape").decode(),
+    )
 
 def replace_mentions(text: str) -> str:
     return re.sub(r"@\w+", "[MENTION]", text)
@@ -47,6 +50,15 @@ def remove_mentions(text: str) -> str:
 
 def remove_hashtags(text: str) -> str:
     return text.replace("#", "")
+
+
+def strip_boundary_punctuation(text: str) -> str:
+    # Strips sentence-boundary chars from the edges of each token only,
+    # leaving internal punctuation intact (hyphens in "à-vontade",
+    # emoticons like ":)" or ";D").
+    _BOUNDARY = '.,!?"\''
+    words = text.split()
+    return " ".join(w for w in (word.strip(_BOUNDARY) for word in words) if w)
 
 
 def space_normalization(text: str) -> str:
@@ -78,7 +90,7 @@ def find_emoji_codes(text: str) -> list[str]:
     return re.findall(r":\s*\w+\s*:", text)
 
 
-def lematize(text: str) -> str:
+def lemmatize(text: str) -> str:
     nlp = spacy.load("pt_core_news_lg")
     doc = nlp(text)
     return " ".join(token.lemma_ for token in doc)
@@ -92,5 +104,5 @@ def clean(text: str) -> str:
     text = space_normalization(text)
     text = lowercase_normalization(text)
     text = remove_stopwords(text)
-    text = lematize(text)
+    text = lemmatize(text)
     return text

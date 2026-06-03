@@ -28,7 +28,7 @@ class BERTimbauAnalyzer(BertSentimentAnalyzer):
     Requer modelo treinado em models/bert-timbau-sentiment/ produzido por
     bert_timbau_fine_tuner.py. Execute antes de instanciar:
 
-        python -m app.core.classification.bert_timbau_fine_tuner
+        python -m app.core.fine_tuning.bert_timbau_fine_tuner
     """
 
     model_name = str(_FINE_TUNED_PATH)
@@ -38,7 +38,7 @@ class BERTimbauAnalyzer(BertSentimentAnalyzer):
         if not _FINE_TUNED_PATH.exists():
             raise RuntimeError(
                 f"Modelo fine-tuned não encontrado em {_FINE_TUNED_PATH}.\n"
-                f"Execute: python -m app.core.classification.bert_timbau_fine_tuner"
+                f"Execute: python -m app.core.fine_tuning.bert_timbau_fine_tuner"
             )
         super().__init__()
         self._model = self.load_model()

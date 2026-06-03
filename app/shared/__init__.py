@@ -12,7 +12,7 @@ from app.shared.text_cleaner import (
     lowercase_normalization,
     remove_stopwords,
     find_emoji_codes,
-    lematize,
+    lemmatize,
     clean,
     FINANCIAL_ENTITIES,
 )

@@ -6,10 +6,11 @@ from app.shared.text_cleaner import (
     replace_emojis_with_codes,
     replace_mentions,
     remove_hashtags,
+    strip_boundary_punctuation,
     space_normalization,
     lowercase_normalization,
     remove_stopwords,
-    lematize,
+    lemmatize,
     clean,
 )
 
@@ -32,12 +33,12 @@ class TestEmojiHandling:
     def test_emoji_converted_to_name_code(self):
         result = replace_emojis_with_codes("🚨 Alerta!")
         assert "🚨" not in result
-        assert ":police_car_light:" in result
+        assert ":sirene:" in result
 
     def test_multiple_emojis_converted(self):
         result = replace_emojis_with_codes("📈📉")
-        assert ":chart_increasing:" in result
-        assert ":chart_decreasing:" in result
+        assert ":gráfico_subindo:" in result
+        assert ":gráfico_caindo:" in result
 
     def test_text_without_emoji_unchanged(self):
         assert replace_emojis_with_codes("Texto normal") == "Texto normal"
@@ -74,6 +75,63 @@ class TestHashtagCleaning:
         result = remove_hashtags("#MercadoFinanceiro")
         assert "MercadoFinanceiro" in result
         assert "#" not in result
+
+
+class TestStripBoundaryPunctuation:
+    def test_trailing_period(self):
+        assert strip_boundary_punctuation("bom.") == "bom"
+
+    def test_trailing_comma(self):
+        assert strip_boundary_punctuation("resultado,") == "resultado"
+
+    def test_trailing_exclamation(self):
+        assert strip_boundary_punctuation("alta!") == "alta"
+
+    def test_trailing_question_mark(self):
+        assert strip_boundary_punctuation("queda?") == "queda"
+
+    def test_multiple_trailing_boundary_chars(self):
+        assert strip_boundary_punctuation("bom...") == "bom"
+
+    def test_leading_boundary_char(self):
+        assert strip_boundary_punctuation("!bom") == "bom"
+
+    def test_double_quoted_word(self):
+        assert strip_boundary_punctuation('"análise"') == "análise"
+
+    def test_single_quoted_word(self):
+        assert strip_boundary_punctuation("'previsão'") == "previsão"
+
+    def test_preserves_internal_hyphen(self):
+        assert strip_boundary_punctuation("à-vontade") == "à-vontade"
+
+    def test_preserves_text_emoticon(self):
+        assert strip_boundary_punctuation(":)") == ":)"
+
+    def test_strips_trailing_from_hashtag(self):
+        assert strip_boundary_punctuation("#boa!") == "#boa"
+
+    def test_strips_trailing_from_emoji_code(self):
+        result = strip_boundary_punctuation(":chart_increasing:,")
+        assert result == ":chart_increasing:"
+
+    def test_full_sentence(self):
+        result = strip_boundary_punctuation("Não gostei do resultado, mas o atendimento foi bom.")
+        assert result == "Não gostei do resultado mas o atendimento foi bom"
+
+    def test_pipeline_tokens_preserved(self):
+        result = strip_boundary_punctuation("[URL] é confiável.")
+        assert "[URL]" in result
+        assert "." not in result
+
+    def test_pure_punctuation_token_removed(self):
+        assert strip_boundary_punctuation("bom . ruim") == "bom ruim"
+
+    def test_no_boundary_punctuation_unchanged(self):
+        assert strip_boundary_punctuation("texto simples") == "texto simples"
+
+    def test_empty_string(self):
+        assert strip_boundary_punctuation("") == ""
 
 
 class TestWhitespaceCleaning:
@@ -115,31 +173,31 @@ class TestRemoveStopwords:
 
 class TestLematization:
     def test_lemmatization(self):
-        assert lematize("correr correndo correu") == "correr correr correr"
+        assert lemmatize("correr correndo correu") == "correr correr correr"
 
     def test_lemmatization_with_financial_terms(self):
         assert (
-            lematize("🚨 Alta do #IBOV! Saiba mais em https://t.co/abc @InfoMoney")
+            lemmatize("🚨 Alta do #IBOV! Saiba mais em https://t.co/abc @InfoMoney")
             == "🚨 Alta de o # IBOV ! saiba mais em https://t.co/abc @InfoMoney"
         )
 
     def test_lemmatization_with_entities(self):
         assert (
-            lematize("Investimento em B3 e Petrobras está em alta")
+            lemmatize("Investimento em B3 e Petrobras está em alta")
             == "Investimento em B3 e Petrobras estar em alta"
         )
 
     def test_lemmatization_with_url_and_mentions(self):
-        assert lematize("Confira [URL] e siga [MENTION]") == "Confira [ URL _ e siga [ MENTION _"
+        assert lemmatize("Confira [URL] e siga [MENTION]") == "Confira [ URL _ e siga [ MENTION _"
 
     def test_lemmatization_with_emojis(self):
         assert (
-            lematize("Confira :finance_chart_with_upwards_trend: e :moneybag:")
+            lemmatize("Confira :finance_chart_with_upwards_trend: e :moneybag:")
             == "Confira : finance_chart_with_upwards_trend : e : moneybag :"
         )
 
     def test_lemmatization_with_stopwords(self):
-        assert lematize("Este é um teste de lematização") == "este ser um teste de lematização"
+        assert lemmatize("Este é um teste de lematização") == "este ser um teste de lematização"
 
 
 class TestCombined:
@@ -147,14 +205,14 @@ class TestCombined:
         tweet = "🚨 Alta do #IBOV! Saiba mais em https://t.co/abc @InfoMoney"
         result = clean(tweet)
         assert "🚨" not in result
-        assert ": police_car_light :" in result
+        assert ": sirene :" in result
         assert "#" not in result
         assert "IBOV" in result
         assert "[ URL _" in result
         assert "[ MENTION _" in result
         assert "https://" not in result
         assert "@InfoMoney" not in result
-        assert result == ": police_car_light : alta IBOV ! saber [ URL _ [ MENTION _"
+        assert result == ": sirene : alta IBOV ! saber [ URL _ [ MENTION _"
 
     def test_full_tweet_with_financial_terms(self):
         tweet = "Investimento em PETR4 e VALE3 está em alta! Veja mais em https://t.co/abc @FinanceNews"
