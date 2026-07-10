@@ -26,6 +26,9 @@ click==8.1.7
 loguru==0.7.2
 pydantic==2.5.3
 
+# Dashboard
+streamlit==1.59.1
+
 # Dev dependencies
 pytest==7.4.4
 pytest-cov==7.1.0
