@@ -253,7 +253,12 @@ WHERE
 
 
 SELECT
-    t.*,
+    t.id,
+    t.tweet_id,
+    t.note_tweet AS tweet,
+    t.created_at::timestamp AT TIME ZONE 'UTC' AS created_at_utc,
+    t.is_finance_tweet,
+    t.sentiment,
     EXISTS (
         SELECT 1 FROM tweets_classification tc
         WHERE tc.tweet_id = t.id

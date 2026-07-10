@@ -285,6 +285,18 @@ na primeira instanciação de cada analisador.
 | SentiLex-flex-PT02 | `data/sentilex/sentiLex-flex-PT02.txt`     | Download automático ao instanciar |
 | OpLexicon v3.0 | `data/lexicons/oplexicon_v3.0/lexico_v3.0.txt` | Download automático ao instanciar |
 
+`app/shared/text_cleaner.py` usa o modelo spaCy `pt_core_news_lg` para
+lematização. Diferente dos léxicos acima, ele **não** é baixado automaticamente
+nem via `requirements.txt` — é um pacote Python separado que precisa ser
+instalado manualmente após o `pip install`:
+
+```bash
+python -m spacy download pt_core_news_lg
+```
+
+Sem esse passo, os testes de `text_cleaner_tests.py` e `op_lexicon_tests.py`
+falham com `OSError: [E050] Can't find model 'pt_core_news_lg'`.
+
 ---
 
 ## 11. Fontes de dados
@@ -302,7 +314,7 @@ Coleta via `GET /2/users/{id}/tweets` (API X v2, Bearer Token).
 ## 12. Repositórios
 
 - **TCC (LaTeX):** https://github.com/toninlopes/usp-tcc-mba-ia-bigdata
-- **Pipeline:** https://github.com/toninlopes/usp-tcc-pipeline-mba-ia-bigdata
+- **Pipeline:** https://github.com/toninlopes/x-sentimento-financeiro-bertimbau
 
 ---
 

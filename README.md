@@ -172,6 +172,10 @@ source .venv/bin/activate       # Linux/macOS
 # .venv\Scripts\activate        # Windows
 
 pip install -r requirements.txt
+
+# Modelo spaCy usado em app/shared/text_cleaner.py (lematização) — não é
+# instalado via requirements.txt, precisa do download separado abaixo:
+python -m spacy download pt_core_news_lg
 ```
 
 ---
@@ -449,4 +453,4 @@ Coleta via `GET /2/users/{id}/tweets` (API X v2, Bearer Token).
 ## 9. Repositórios
 
 - **TCC (LaTeX):** https://github.com/toninlopes/usp-tcc-mba-ia-bigdata
-- **Pipeline:** https://github.com/toninlopes/usp-tcc-pipeline-mba-ia-bigdata
+- **Pipeline:** https://github.com/toninlopes/x-sentimento-financeiro-bertimbau
