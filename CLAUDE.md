@@ -313,7 +313,7 @@ Coleta via `GET /2/users/{id}/tweets` (API X v2, Bearer Token).
 
 ## 12. Repositórios
 
-- **TCC (LaTeX):** https://github.com/toninlopes/usp-tcc-mba-ia-bigdata
+- **TCC (LaTeX):** https://github.com/toninlopes/x-sentimento-financeiro-bertimbau-paper
 - **Pipeline:** https://github.com/toninlopes/x-sentimento-financeiro-bertimbau
 
 ---
