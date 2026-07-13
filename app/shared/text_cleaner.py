@@ -90,9 +90,14 @@ def find_emoji_codes(text: str) -> list[str]:
     return re.findall(r":\s*\w+\s*:", text)
 
 
+_nlp = None
+
+
 def lemmatize(text: str) -> str:
-    nlp = spacy.load("pt_core_news_lg")
-    doc = nlp(text)
+    global _nlp
+    if _nlp is None:
+        _nlp = spacy.load("pt_core_news_lg")
+    doc = _nlp(text)
     return " ".join(token.lemma_ for token in doc)
 
 

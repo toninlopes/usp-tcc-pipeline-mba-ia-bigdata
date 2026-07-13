@@ -131,11 +131,12 @@ class TestPreprocess:
         assert "#" not in result
         assert "IBOV" in result
 
-    def test_does_not_lowercase(self, analyzer):
-        """BERTimbau é cased — capitalização deve ser preservada."""
+    def test_lowercases_regular_words_but_preserves_tickers(self, analyzer):
+        """BERTimbau é cased, mas lowercase_normalization lowercasa palavras comuns
+        e preserva apenas tickers/entidades financeiras."""
         result = analyzer.preprocess("PETR4 em Alta")
         assert "PETR4" in result
-        assert "Alta" in result
+        assert "alta" in result
 
     def test_preserves_ticker_casing(self, analyzer):
         result = analyzer.preprocess("Comprei VALE3 e PETR4")

@@ -5,12 +5,7 @@ from transformers.models.auto.tokenization_auto import AutoTokenizer
 
 from app.core.classification.bert.bert_analyzer import BertSentimentAnalyzer
 from app.shared.text_cleaner import (
-    replace_urls,
-    remove_emojis,
-    replace_mentions,
-    remove_hashtags,
     space_normalization,
-    lowercase_normalization,
 )
 
 
@@ -39,15 +34,9 @@ class FinBertPTBRAnalyzer(BertSentimentAnalyzer):
     def preprocess(self, text: str) -> str:
         """Aplica etapas de limpeza adequadas ao FinBERT-PT-BR.
 
-        Remove ruídos de tweets (URLs, emojis, menções, hashtags) e
-        normaliza espaços e caixa, preservando tickers e entidades financeiras.
+        Melhor configuração salva para FinBERT-PT-BR — concordância 40.5%: Normalizar espaços
         """
-        text = replace_urls(text)
-        text = remove_emojis(text)
-        text = replace_mentions(text)
-        text = remove_hashtags(text)
         text = space_normalization(text)
-        text = lowercase_normalization(text)
         return text
 
     def run(self) -> pd.DataFrame:

@@ -6,32 +6,41 @@
     ]
   },
   "BERTimbau": {
-    "concordance": 0.8927613941018767,
+    "concordance": 0.8954423592493298,
     "steps": [
+      "Substituir URLs por [URL]",
+      "Substituir emojis por códigos",
+      "Substituir menções por [MENTION]",
+      "Remover hashtags (#)",
+      "Remover pontuação de borda (.!?,)",
       "Normalizar espaços",
       "Normalizar caixa (preserva tickers)"
     ]
   },
   "SentiLex-PT": {
-    "concordance": 0.289544235924933,
+    "concordance": 0.2949061662198391,
     "steps": [
       "Remover URLs",
       "Remover emojis",
       "Remover menções (@)",
-      "Remover pontuação de borda (.!?,)",
-      "Normalizar espaços",
-      "Normalizar caixa (preserva tickers)"
-    ]
-  },
-  "OpLexicon": {
-    "concordance": 0.2386058981233244,
-    "steps": [
-      "Remover URLs",
-      "Remover emojis",
-      "Remover menções (@)",
+      "Remover hashtags (#)",
       "Remover pontuação de borda (.!?,)",
       "Normalizar espaços",
       "Normalizar caixa (preserva tickers)",
+      "Remover stopwords"
+    ]
+  },
+  "OpLexicon": {
+    "concordance": 0.257372654155496,
+    "steps": [
+      "Remover URLs",
+      "Remover emojis",
+      "Remover menções (@)",
+      "Remover hashtags (#)",
+      "Remover pontuação de borda (.!?,)",
+      "Normalizar espaços",
+      "Normalizar caixa (preserva tickers)",
+      "Remover stopwords",
       "Lematizar"
     ]
   }

@@ -107,17 +107,16 @@ def save_best_config(config: dict) -> None:
         json.dump(config, f, ensure_ascii=False, indent=2)
 
 
-def maybe_save(algorithm: str, steps: List[Callable], concordance: float) -> bool:
-    """Saves steps + concordance for algorithm if concordance improves. Returns True if saved."""
+def save_preprocessing_result(algorithm: str, steps: List[Callable], concordance: float) -> bool:
+    """Saves steps + concordance for algorithm, overwriting any previous entry. Returns True if it's a new best."""
     config = load_best_config()
-    if concordance > config.get(algorithm, {}).get("concordance", -1.0):
-        config[algorithm] = {
-            "concordance": concordance,
-            "steps": [_FN_TO_LABEL[fn] for fn in steps],
-        }
-        save_best_config(config)
-        return True
-    return False
+    is_new_best = concordance > config.get(algorithm, {}).get("concordance", -1.0)
+    config[algorithm] = {
+        "concordance": concordance,
+        "steps": [_FN_TO_LABEL[fn] for fn in steps],
+    }
+    save_best_config(config)
+    return is_new_best
 
 
 # ── Analyzer loading ──────────────────────────────────────────────────────────
@@ -307,8 +306,8 @@ if pending is not None:
                 classificator=classificator_val,
                 score=float(row["confiança"]),
             )
-        saved = maybe_save(pending_algo, pending["steps"], concordance_rate)
-        if saved:
+        is_new_best = save_preprocessing_result(pending_algo, pending["steps"], concordance_rate)
+        if is_new_best:
             step_names = [_FN_TO_LABEL[fn] for fn in pending["steps"]]
             detail = ", ".join(step_names) if step_names else "nenhum pré-processamento extra"
             st.session_state["clf_save_success"] = (

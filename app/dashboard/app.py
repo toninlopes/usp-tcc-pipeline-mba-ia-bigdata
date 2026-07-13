@@ -10,6 +10,14 @@ _project_root = os.path.dirname(os.path.dirname(_dashboard_dir))
 sys.path = [p for p in sys.path if p not in (_dashboard_dir, _project_root)]
 sys.path.insert(0, _project_root)
 
+import pyarrow as pa
+
+# Forces pyarrow's pandas->Arrow conversion (used by st.dataframe) to run
+# single-threaded. Its default multi-threaded conversion segfaults when
+# invoked from a Streamlit ScriptRunner thread in a process that has also
+# loaded torch/spaCy — their native thread pools collide with pyarrow's.
+pa.set_cpu_count(1)
+
 import streamlit as st
 
 pg_annotation = st.Page("pages/annotation.py", title="Anotação", icon="🏷️")

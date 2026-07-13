@@ -4,7 +4,7 @@ collect:
 	PYTHONPATH=. python -m app.core.extraction
 
 dashboard:
-	PYTHONPATH=. streamlit run app/dashboard/app.py
+	PYTHONPATH=. PYTHONFAULTHANDLER=1 streamlit run app/dashboard/app.py
 
 evaluate:
 	PYTHONPATH=. python -m app.core.evaluation

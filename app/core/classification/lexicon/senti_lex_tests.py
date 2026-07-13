@@ -168,9 +168,12 @@ class TestPreprocess:
     def test_replaces_mention(self, analyzer):
         assert "@InfoMoney" not in analyzer.preprocess("Via @InfoMoney")
 
-    def test_preserves_hashtag(self, analyzer):
+    def test_removes_hashtag_symbol(self, analyzer):
+        """Melhor configuração encontrada para SentiLex-PT remove hashtags (#).
+        IBOV é entidade financeira preservada por lowercase_normalization."""
         result = analyzer.preprocess("Alta do #IBOV")
-        assert "#IBOV" in result
+        assert "#" not in result
+        assert "IBOV" in result
 
     def test_lowercases_text(self, analyzer):
         assert "mercado" in analyzer.preprocess("Mercado")

@@ -3,6 +3,8 @@ from typing import Dict
 
 from app.core.classification.lexicon.lexicon_analyzer import LexiconSentimentAnalyzer
 from app.shared.text_cleaner import (
+    remove_hashtags,
+    remove_stopwords,
     remove_urls,
     remove_emojis,
     remove_mentions,
@@ -66,12 +68,21 @@ class OpLexiconAnalyzer(LexiconSentimentAnalyzer):
         return lexicon
     
     def preprocess(self, text: str) -> str:
+        ''''
+        Melhor configuração salva para OpLexicon — concordância 25.7%:
+        Remover URLs, Remover emojis, Remover menções (@), Remover hashtags (#),
+        Remover pontuação de borda (.!?,), Normalizar espaços,
+        Normalizar caixa (preserva tickers),
+        Remover stopwords, Lematizar
+        '''
         text = remove_urls(text)
         text = remove_emojis(text)
         text = remove_mentions(text)
+        text = remove_hashtags(text)
         text = strip_boundary_punctuation(text)
         text = space_normalization(text)
         text = lowercase_normalization(text)
+        text = remove_stopwords(text)
         text = lemmatize(text)
         return text
 

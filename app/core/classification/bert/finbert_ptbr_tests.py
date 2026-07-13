@@ -60,32 +60,30 @@ class TestClassAttributes:
 # ── preprocess ────────────────────────────────────────────────────────────────
 
 class TestPreprocess:
-    def test_removes_url(self, analyzer):
+    def test_preserves_url(self, analyzer):
+        """Melhor configuração encontrada para FinBERT-PT-BR só normaliza espaços."""
         result = analyzer.preprocess("Veja https://t.co/abc")
-        assert "https://" not in result
-        assert "[URL]" in result
+        assert "https://t.co/abc" in result
 
-    def test_removes_emoji(self, analyzer):
+    def test_preserves_emoji(self, analyzer):
         result = analyzer.preprocess("🚨 Alerta!")
-        assert "🚨" not in result
+        assert "🚨" in result
 
-    def test_replaces_mention(self, analyzer):
+    def test_preserves_mention(self, analyzer):
         result = analyzer.preprocess("Segundo @InfoMoney")
-        assert "@InfoMoney" not in result
-        assert "[MENTION]" in result
+        assert "@InfoMoney" in result
 
-    def test_removes_hashtag_symbol(self, analyzer):
+    def test_preserves_hashtag_symbol(self, analyzer):
         result = analyzer.preprocess("Alta do #IBOV")
-        assert "#" not in result
-        assert "IBOV" in result
+        assert "#IBOV" in result
 
     def test_collapses_spaces(self, analyzer):
         result = analyzer.preprocess("texto   com   espaços")
         assert "  " not in result
 
-    def test_lowercases_regular_words(self, analyzer):
+    def test_preserves_case(self, analyzer):
         result = analyzer.preprocess("Alta do Mercado")
-        assert "mercado" in result
+        assert "Mercado" in result
 
     def test_preserves_ticker(self, analyzer):
         result = analyzer.preprocess("Comprei PETR4")

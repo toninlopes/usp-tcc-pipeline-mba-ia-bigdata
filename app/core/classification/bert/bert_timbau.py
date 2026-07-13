@@ -10,11 +10,13 @@ from transformers.pipelines import pipeline
 
 from app.core.classification.bert.bert_analyzer import BertSentimentAnalyzer
 from app.shared.text_cleaner import (
-    replace_urls,
+    remove_hashtags,
     replace_emojis_with_codes,
     replace_mentions,
-    remove_hashtags,
+    replace_urls,
+    strip_boundary_punctuation,
     space_normalization,
+    lowercase_normalization,
 )
 
 # bert/ → processing/ → core/ → app/ → project root
@@ -50,16 +52,24 @@ class BERTimbauAnalyzer(BertSentimentAnalyzer):
         return pipeline(task="text-classification", model=model, tokenizer=tokenizer)
 
     def preprocess(self, text: str) -> str:
-        """Limpeza sem lowercase — preserva capitalização de tickers e siglas.
+        """Limpeza com lowercase seletivo — preserva capitalização de tickers,
+        siglas e entidades financeiras via lowercase_normalization, que
+        lowercasa apenas palavras comuns.
 
-        O fine-tuning foi feito com o modelo cased, então lowercase_normalization
-        não deve ser aplicado aqui para manter consistência com o treino.
+        Melhor configuração salva para BERTimbau — concordância 89.5%:
+        Substituir URLs por [URL], Substituir emojis por códigos,
+        Substituir menções por [MENTION],
+        Remover hashtags (#),
+        Remover pontuação de borda (.!?,), Normalizar espaços,
+        Normalizar caixa (preserva tickers)
         """
         text = replace_urls(text)
         text = replace_emojis_with_codes(text)
         text = replace_mentions(text)
         text = remove_hashtags(text)
+        text = strip_boundary_punctuation(text)
         text = space_normalization(text)
+        text = lowercase_normalization(text)
         return text
 
     def normalize_label(self, label: str) -> str:
